@@ -46,8 +46,15 @@ def add_record(kind, id, rec):
 def link_records(kind1, id1, kind2, id2):
     kind3 = None
     id3 = None
-    if not record_exists(kind1, id1) or not record_exists(kind2, id2):
-        raise ValueError("A targeted record does not exist")
+# This puts kind of a lot of responsibility on the client to dissect the records
+# before POSTing them and working with linking aftwards
+# Eg, you can't just say "this is linked to a thing I'm going to add later"
+# Instead you have to look back through your objects (that you've taken apart)
+# in your app space saying "and now I will re-establish that object X participates in
+# relationship Y"
+#
+#    if not record_exists(kind1, id1) or not record_exists(kind2, id2):
+#        raise ValueError("A targeted record does not exist")
     if kind2 != "relationship":
         kind3 = kind2
         id3 = id2
@@ -60,7 +67,7 @@ def link_records(kind1, id1, kind2, id2):
             ),
             relationshipType="link",
             relationshipSubType="simple",
-            relationshipNote="Automatically created"
+            relationshipNote="Automatically created to facilitate linking"
         )
         add_record(kind2, id2, dumps(relationship_record.to_json()))
     BLUEPRINT.config['redis'].zadd(id1+"_"+kind2+"Links", 0, id2)
@@ -119,6 +126,10 @@ class ObjectList(Resource):
                 objId = x.get_objectIdentifierValue()
         if objId is None:
             raise RuntimeError()
+        for x in rec.get_linkingRelationshipIdentifier():
+            if x.get_linkingRelationshipIdentifierType() == "uuid":
+                link_records("object", objId, "relationship", x.get_linkingRelationshipIdentifierValue())
+        rec.del_linkingRelationshipIdentifier()
         add_record("object", objId, dumps(rec.to_dict()))
         return objId
 
@@ -128,27 +139,13 @@ class Object(Resource):
         if not record_exists("object", id):
             raise ValueError("No such object! ({})".format(id))
         rec = pyqremis.Object.from_dict(loads(get_record(id)))
-        objId = None
-        for x in rec.get_objectIdentifier():
-            if x.get_objectIdentifierType() == "uuid":
-                objId = x.get_objectIdentifierValue()
-                break
-        linkedRelationships = []
-        for x in get_kind_links("relationship", objId):
+        for x in get_kind_links("relationship", id):
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
                     linkingRelationshipIdentifierValue=x
                 )
             )
-        if linkedRelationships:
-            linkingRelationships = pyqremis.LinkingRelationships(linkedRelationships[0])
-            try:
-                for x in linkedRelationships[1:]:
-                    linkingRelationships.add_linkingRelationshipIdentifier(x)
-            except IndexError:
-                pass
-            rec.set_linkingRelationships(linkingRelationships)
         return rec.to_dict()
 
 
@@ -171,12 +168,38 @@ class EventList(Resource):
     def get(self):
         return {x: API.url_for(Event, id=x) for x in get_kind_list("event")}
 
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("record", type=str, required=True)
+        args = parser.parse_args()
+        rec = pyqremis.Event.from_dict(loads(args['record']))
+        eventId = None
+        for x in rec.get_eventIdentifier():
+            if x.get_eventIdentifierType() == "uuid":
+                eventId = x.get_eventIdentifierValue()
+        if eventId is None:
+            raise RuntimeError()
+        for x in rec.get_linkingRelationshipIdentifier():
+            if x.get_linkingRelationshipIdentifierType() == "uuid":
+                link_records("event", eventId, "relationship", x.get_linkingRelationshipIdentifierValue())
+        rec.del_linkingRelationshipIdentifier()
+        add_record("event", eventId, dumps(rec.to_dict()))
+        return eventId
+
 
 class Event(Resource):
     def get(self, id):
         if not record_exists("event", id):
             raise ValueError("No such event! ({})".format(id))
-        return {"result": get_record(id)}
+        rec = pyqremis.Event.from_dict(loads(get_record(id)))
+        for x in get_kind_links("relationship", id):
+            rec.add_linkingRelationshipIdentifier(
+                pyqremis.LinkingRelationshipIdentifier(
+                    linkingRelationshipIdentifierType="uuid",
+                    linkingRelationshipIdentifierValue=x
+                )
+            )
+        return rec.to_dict()
 
 
 class EventLinkedRelationships(Resource):
@@ -196,12 +219,56 @@ class AgentList(Resource):
     def get(self):
         return {x: API.url_for(Agent, id=x) for x in get_kind_list("agent")}
 
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("record", type=str, required=True)
+        args = parser.parse_args()
+        rec = pyqremis.Agent.from_dict(loads(args['record']))
+        agentId = None
+        for x in rec.get_agentIdentifier():
+            if x.get_agentIdentifierType() == "uuid":
+                agentId = x.get_agentIdentifierValue()
+        if agentId is None:
+            raise RuntimeError()
+        for x in rec.get_linkingRelationshipIdentifier():
+            if x.get_linkingRelationshipIdentifierType() == "uuid":
+                link_records("agent", agentId, "relationship", x.get_linkingRelationshipIdentifierValue())
+        rec.del_linkingRelationshipIdentifier()
+        add_record("agent", agentId, dumps(rec.to_dict()))
+        return agentId
+
 
 class Agent(Resource):
     def get(self, id):
         if not record_exists("agent", id):
             raise ValueError("No such agent! ({})".format(id))
-        return {"result": get_record(id)}
+        rec = pyqremis.Agent.from_dict(loads(get_record(id)))
+        for x in get_kind_links("relationship", id):
+            rec.add_linkingRelationshipIdentifier(
+                pyqremis.LinkingRelationshipIdentifier(
+                    linkingRelationshipIdentifierType="uuid",
+                    linkingRelationshipIdentifierValue=x
+                )
+            )
+        return rec.to_dict()
+
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("record", type=str, required=True)
+        args = parser.parse_args()
+        rec = pyqremis.Agent.from_dict(loads(args['record']))
+        agentId = None
+        for x in rec.get_agentIdentifier():
+            if x.get_agentIdentifierType() == "uuid":
+                agentId = x.get_agentIdentifierValue()
+        if agentId is None:
+            raise RuntimeError()
+        for x in rec.get_linkingRelationshipIdentifier():
+            if x.get_linkingRelationshipIdentifierType() == "uuid":
+                link_records("agent", agentId, "relationship", x.get_linkingRelationshipIdentifierValue())
+        rec.del_linkingRelationshipIdentifier()
+        add_record("agent", agentId, dumps(rec.to_dict()))
+        return agentId
 
 
 class AgentLinkedRelationships(Resource):
@@ -221,12 +288,38 @@ class RightsList(Resource):
     def get(self):
         return {x: API.url_for(Rights, id=x) for x in get_kind_list("rights")}
 
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("record", type=str, required=True)
+        args = parser.parse_args()
+        rec = pyqremis.Rights.from_dict(loads(args['record']))
+        rightsId = None
+        for x in rec.get_rightsIdentifier():
+            if x.get_rightsIdentifierType() == "uuid":
+                rightsId = x.get_rightsIdentifierValue()
+        if rightsId is None:
+            raise RuntimeError()
+        for x in rec.get_linkingRelationshipIdentifier():
+            if x.get_linkingRelationshipIdentifierType() == "uuid":
+                link_records("rights", rightsId, "relationship", x.get_linkingRelationshipIdentifierValue())
+        rec.del_linkingRelationshipIdentifier()
+        add_record("rights", rightsId, dumps(rec.to_dict()))
+        return rightsId
+
 
 class Rights(Resource):
     def get(self, id):
         if not record_exists("rights", id):
             raise ValueError("No such rights! ({})".format(id))
-        return {"result": get_record(id)}
+        rec = pyqremis.Rights.from_dict(loads(get_record(id)))
+        for x in get_kind_links("relationship", id):
+            rec.add_linkingRelationshipIdentifier(
+                pyqremis.LinkingRelationshipIdentifier(
+                    linkingRelationshipIdentifierType="uuid",
+                    linkingRelationshipIdentifierValue=x
+                )
+            )
+        return rec.to_dict()
 
 
 class RightsLinkedRelationships(Resource):
@@ -257,6 +350,27 @@ class RelationshipList(Resource):
                 relationshipId = x.get_relationshipIdentifierValue()
         if relationshipId is None:
             raise RuntimeError()
+
+        for x in rec.get_linkingObjectIdentifier():
+            if x.get_linkingObjectIdentifierType() == "uuid":
+                link_records("relationship", relationshipId, "object", x.get_linkingObjectIdentifierValue())
+        rec.del_linkingObjectIdenitifer()
+
+        for x in rec.get_linkingEventIdentifier():
+            if x.get_linkingEventIdentifierType() == "uuid":
+                link_records("relationship", relationshipId, "event", x.get_linkingEventIdentifierValue())
+        rec.del_linkingEventIdenitifer()
+
+        for x in rec.get_linkingAgentIdentifier():
+            if x.get_linkingAgentIdentifierType() == "uuid":
+                link_records("relationship", relationshipId, "agent", x.get_linkingAgentIdentifierValue())
+        rec.del_linkingAgentIdenitifer()
+
+        for x in rec.get_linkingRightsIdentifier():
+            if x.get_linkingRightsIdentifierType() == "uuid":
+                link_records("relationship", relationshipId, "rights", x.get_linkingRightsIdentifierValue())
+        rec.del_linkingRightsIdenitifer()
+
         add_record("relationship", relationshipId, dumps(rec.to_dict()))
         return relationshipId
 
@@ -266,21 +380,38 @@ class Relationship(Resource):
         if not record_exists("relationship", id):
             raise ValueError("No such relationship! ({})".format(id))
         rec = pyqremis.Relationship.from_dict(loads(get_record(id)))
-        relationshipId = None
-        for x in rec.get_relationshipIdentifier():
-            if x.get_relationshipIdentifierType() == "uuid":
-                relationshipId = x.get_relationshipIdentifierValue()
-                break
-        linkedObjects = []
-        for x in get_kind_links("object", relationshipId):
-            linkedObjects.append(
+
+        for x in get_kind_links("object", id):
+            rec.add_linkingObjectIdentifier(
                 pyqremis.LinkingObjectIdentifier(
                     linkingObjectIdentifierType="uuid",
                     linkingObjectIdentifierValue=x
                 )
             )
-        for x in linkedObjects:
-            rec.add_linkingObjectIdentifier(x)
+
+        for x in get_kind_links("agent", id):
+            rec.add_linkingAgentIdentifier(
+                pyqremis.LinkingAgentIdentifier(
+                    linkingAgentIdentifierType="uuid",
+                    linkingObjectIdentifierValue=x
+                )
+            )
+
+        for x in get_kind_links("event", id):
+            rec.add_linkingEventIdentifier(
+                pyqremis.LinkingEventIdentifier(
+                    linkingEventIdentifierType="uuid",
+                    linkingEventIdentifierValue=x
+                )
+            )
+
+        for x in get_kind_links("rights", id):
+            rec.add_linkingRightsIdentifier(
+                pyqremis.LinkingRightsIdentifier(
+                    linkingRightsIdentifierType="uuid",
+                    linkingRightsIdentifierValue=x
+                )
+            )
         return rec.to_dict()
 
 
