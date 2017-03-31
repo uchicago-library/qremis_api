@@ -12,9 +12,14 @@ setup(
         exclude = [
         ]
     ),
+    dependency_links = [
+        'https://github.com/bnbalsamo/pyqremis' +
+        '/tarball/master#egg=pyqremis'
+    ],
     install_requires = [
         'flask>0',
         'flask_restful',
-        'redis'
+        'redis',
+        'pyqremis'
     ],
 )
