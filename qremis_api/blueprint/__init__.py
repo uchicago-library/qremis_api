@@ -1,9 +1,12 @@
 import logging
 from uuid import uuid4
+from json import dumps, loads
 
 from flask import Blueprint
 from flask_restful import Resource, Api, reqparse
 import redis
+
+import pyqremis
 
 
 BLUEPRINT = Blueprint('qremis_api', __name__)
@@ -50,7 +53,16 @@ def link_records(kind1, id1, kind2, id2):
         id3 = id2
         kind2 = "relationship"
         id2 = uuid4().hex
-        add_record(kind2, id2, "TEST RELATIONSHIP ({})".format(id2))
+        relationship_record = pyqremis.Relationship(
+            pyqremis.RelationshipIdentifier(
+                relationshipIdentifierType='uuid',
+                relationshipIdentifierValue=uuid4().hex
+            ),
+            relationshipType="link",
+            relationshipSubType="simple",
+            relationshipNote="Automatically created"
+        )
+        add_record(kind2, id2, dumps(relationship_record.to_json()))
     BLUEPRINT.config['redis'].zadd(id1+"_"+kind2+"Links", 0, id2)
     BLUEPRINT.config['redis'].zadd(id2+"_"+kind1+"Links", 0, id1)
     if kind3 is not None and id3 is not None:
@@ -96,15 +108,48 @@ class ObjectList(Resource):
     def get(self):
         return {x: API.url_for(Object, id=x) for x in get_kind_list("object")}
 
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("record", type=str, required=True)
+        args = parser.parse_args()
+        rec = pyqremis.Object.from_dict(loads(args['record']))
+        objId = None
+        for x in rec.get_objectIdentifier():
+            if x.get_objectIdentifierType() == "uuid":
+                objId = x.get_objectIdentifierValue()
+        if objId is None:
+            raise RuntimeError()
+        add_record("object", objId, dumps(rec.to_dict()))
+        return objId
+
 
 class Object(Resource):
     def get(self, id):
         if not record_exists("object", id):
             raise ValueError("No such object! ({})".format(id))
-        return {"result": get_record(id)}
-
-    def post(self, id):
-        add_record("object", id, "TEST OBJECT ({})".format(id))
+        rec = pyqremis.Object.from_dict(loads(get_record(id)))
+        objId = None
+        for x in rec.get_objectIdentifier():
+            if x.get_objectIdentifierType() == "uuid":
+                objId = x.get_objectIdentifierValue()
+                break
+        linkedRelationships = []
+        for x in get_kind_links("relationship", objId):
+            rec.add_linkingRelationshipIdentifier(
+                pyqremis.LinkingRelationshipIdentifier(
+                    linkingRelationshipIdentifierType="uuid",
+                    linkingRelationshipIdentifierValue=x
+                )
+            )
+        if linkedRelationships:
+            linkingRelationships = pyqremis.LinkingRelationships(linkedRelationships[0])
+            try:
+                for x in linkedRelationships[1:]:
+                    linkingRelationships.add_linkingRelationshipIdentifier(x)
+            except IndexError:
+                pass
+            rec.set_linkingRelationships(linkingRelationships)
+        return rec.to_dict()
 
 
 class ObjectLinkedRelationships(Resource):
@@ -133,9 +178,6 @@ class Event(Resource):
             raise ValueError("No such event! ({})".format(id))
         return {"result": get_record(id)}
 
-    def post(self, id):
-        add_record("event", id, "TEST EVENT ({})".format(id))
-
 
 class EventLinkedRelationships(Resource):
     def get(self, id):
@@ -160,9 +202,6 @@ class Agent(Resource):
         if not record_exists("agent", id):
             raise ValueError("No such agent! ({})".format(id))
         return {"result": get_record(id)}
-
-    def post(self, id):
-        add_record("agent", id, "TEST AGENT ({})".format(id))
 
 
 class AgentLinkedRelationships(Resource):
@@ -189,9 +228,6 @@ class Rights(Resource):
             raise ValueError("No such rights! ({})".format(id))
         return {"result": get_record(id)}
 
-    def post(self, id):
-        add_record("rights", id, "TEST RIGHTS ({})".format(id))
-
 
 class RightsLinkedRelationships(Resource):
     def get(self, id):
@@ -210,15 +246,42 @@ class RelationshipList(Resource):
     def get(self):
         return {x: API.url_for(Relationship, id=x) for x in get_kind_list("relationship")}
 
+    def post(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("record", type=str, required=True)
+        args = parser.parse_args()
+        rec = pyqremis.Relationship.from_dict(loads(args['record']))
+        relationshipId = None
+        for x in rec.get_relationshipIdentifier():
+            if x.get_relationshipIdentifierType() == "uuid":
+                relationshipId = x.get_relationshipIdentifierValue()
+        if relationshipId is None:
+            raise RuntimeError()
+        add_record("relationship", relationshipId, dumps(rec.to_dict()))
+        return relationshipId
+
 
 class Relationship(Resource):
     def get(self, id):
         if not record_exists("relationship", id):
             raise ValueError("No such relationship! ({})".format(id))
-        return {"result": get_record(id)}
-
-    def post(self, id):
-        add_record("relationship", id, "TEST RELATIONSHIP ({})".format(id))
+        rec = pyqremis.Relationship.from_dict(loads(get_record(id)))
+        relationshipId = None
+        for x in rec.get_relationshipIdentifier():
+            if x.get_relationshipIdentifierType() == "uuid":
+                relationshipId = x.get_relationshipIdentifierValue()
+                break
+        linkedObjects = []
+        for x in get_kind_links("object", relationshipId):
+            linkedObjects.append(
+                pyqremis.LinkingObjectIdentifier(
+                    linkingObjectIdentifierType="uuid",
+                    linkingObjectIdentifierValue=x
+                )
+            )
+        for x in linkedObjects:
+            rec.add_linkingObjectIdentifier(x)
+        return rec.to_dict()
 
 
 class RelationshipLinkedObjects(Resource):
