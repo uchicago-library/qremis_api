@@ -100,12 +100,11 @@ def record_is_kind(kind, id):
 #        yield x[0].decode("utf-8")
 
 def get_kind_links(kind, id, cursor, limit):
-    for x in BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor, count=limit):
-        yield x[0].decode("utf-8")
+    return BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor=cursor, count=limit)
+
 
 def get_kind_list(kind, cursor, limit):
-    for x in BLUEPRINT.config['redis'].zscan(kind+"List", cursor, count=limit):
-        yield x[0].decode("utf-8")
+    return BLUEPRINT.config['redis'].zscan(kind+"List", cursor, count=limit)
 
 
 class Root(Resource):
@@ -123,7 +122,14 @@ class ObjectList(Resource):
     def get(self):
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
-        return {x: API.url_for(Object, id=x) for x in get_kind_list("object", args['cursor'], args['limit'])}
+        r = {}
+        q = get_kind_list("object", args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = args['limit']
+        r['objects'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Object, id=x[0].decode('utf-8'))}
+                        for x in q[1]]
+        return r
 
     def post(self):
         parser = reqparse.RequestParser()
