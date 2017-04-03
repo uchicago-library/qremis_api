@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 
 
 pagination_args_parser = reqparse.RequestParser()
-pagination_args_parser.add_argument('offset', type=int, default=0)
+pagination_args_parser.add_argument('cursor', type=int, default=0)
 pagination_args_parser.add_argument('limit', type=int, default=1000)
 
 
@@ -90,13 +90,21 @@ def record_is_kind(kind, id):
     return False
 
 
-def get_kind_links(kind, id):
-    for x in BLUEPRINT.config['redis'].zscan_iter(id+"_"+kind+"Links"):
+#def get_kind_links(kind, id):
+#    for x in BLUEPRINT.config['redis'].zscan_iter(id+"_"+kind+"Links"):
+#        yield x[0].decode("utf-8")
+
+
+#def get_kind_list(kind):
+#    for x in BLUEPRINT.config['redis'].zscan_iter(kind+"List"):
+#        yield x[0].decode("utf-8")
+
+def get_kind_links(kind, id, cursor, limit):
+    for x in BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor, count=limit):
         yield x[0].decode("utf-8")
 
-
-def get_kind_list(kind):
-    for x in BLUEPRINT.config['redis'].zscan_iter(kind+"List"):
+def get_kind_list(kind, cursor, limit):
+    for x in BLUEPRINT.config['redis'].zscan(kind+"List", cursor, count=limit):
         yield x[0].decode("utf-8")
 
 
@@ -113,7 +121,9 @@ class Root(Resource):
 
 class ObjectList(Resource):
     def get(self):
-        return {x: API.url_for(Object, id=x) for x in get_kind_list("object")}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        return {x: API.url_for(Object, id=x) for x in get_kind_list("object", args['cursor'], args['limit'])}
 
     def post(self):
         parser = reqparse.RequestParser()
