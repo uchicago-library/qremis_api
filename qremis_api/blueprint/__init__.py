@@ -46,13 +46,12 @@ def add_record(kind, id, rec):
 def link_records(kind1, id1, kind2, id2):
     kind3 = None
     id3 = None
-# This puts kind of a lot of responsibility on the client to dissect the records
-# before POSTing them and working with linking aftwards
-# Eg, you can't just say "this is linked to a thing I'm going to add later"
-# Instead you have to look back through your objects (that you've taken apart)
-# in your app space saying "and now I will re-establish that object X participates in
-# relationship Y"
-#
+    # This puts kind of a lot of responsibility on the client to dissect the records
+    # before POSTing them and working with linking aftwards
+    # Eg, you can't just say "this is linked to a thing I'm going to add later"
+    # Instead you have to look back through your objects (that you've taken apart)
+    # in your app space saying "and now I will re-establish that object X participates in
+    # relationship Y"
 #    if not record_exists(kind1, id1) or not record_exists(kind2, id2):
 #        raise ValueError("A targeted record does not exist")
     if kind2 != "relationship":
@@ -90,15 +89,6 @@ def record_is_kind(kind, id):
     return False
 
 
-#def get_kind_links(kind, id):
-#    for x in BLUEPRINT.config['redis'].zscan_iter(id+"_"+kind+"Links"):
-#        yield x[0].decode("utf-8")
-
-
-#def get_kind_list(kind):
-#    for x in BLUEPRINT.config['redis'].zscan_iter(kind+"List"):
-#        yield x[0].decode("utf-8")
-
 def get_kind_links(kind, id, cursor, limit):
     return BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor=cursor, count=limit)
 
@@ -126,9 +116,9 @@ class ObjectList(Resource):
         q = get_kind_list("object", args['cursor'], check_limit(args['limit']))
         r['starting_cursor'] = args['cursor']
         r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = args['limit']
-        r['objects'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Object, id=x[0].decode('utf-8'))}
-                        for x in q[1]]
+        r['limit'] = check_limit(args['limit'])
+        r['object_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Object, id=x[0].decode('utf-8'))}
+                            for x in q[1]]
         return r
 
     def post(self):
@@ -155,11 +145,11 @@ class Object(Resource):
         if not record_exists("object", id):
             raise ValueError("No such object! ({})".format(id))
         rec = pyqremis.Object.from_dict(loads(get_record(id)))
-        for x in get_kind_links("relationship", id):
+        for x in get_kind_links("relationship", id, 0, None)[1]:
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
-                    linkingRelationshipIdentifierValue=x
+                    linkingRelationshipIdentifierValue=x[0].decode("utf-8")
                 )
             )
         return rec.to_dict()
@@ -167,7 +157,18 @@ class Object(Resource):
 
 class ObjectLinkedRelationships(Resource):
     def get(self, id):
-        return {x: API.url_for(Relationship, id=x) for x in get_kind_links("relationship", id)}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        r = {}
+        q = get_kind_links("relationship", id, args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = check_limit(args['limit'])
+        r['linkingRelationshipIdentifier_list'] = [
+            {'id': x[0].decode("utf-8"), '_link':  API.url_for(Relationship, id=x[0].decode("utf-8"))}
+            for x in q[1]
+        ]
+        return r
 
     def post(self, id):
         parser = reqparse.RequestParser()
@@ -182,7 +183,16 @@ class ObjectLinkedRelationships(Resource):
 
 class EventList(Resource):
     def get(self):
-        return {x: API.url_for(Event, id=x) for x in get_kind_list("event")}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        r = {}
+        q = get_kind_list("event", args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = check_limit(args['limit'])
+        r['event_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Event, id=x[0].decode('utf-8'))}
+                           for x in q[1]]
+        return r
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -208,11 +218,11 @@ class Event(Resource):
         if not record_exists("event", id):
             raise ValueError("No such event! ({})".format(id))
         rec = pyqremis.Event.from_dict(loads(get_record(id)))
-        for x in get_kind_links("relationship", id):
+        for x in get_kind_links("relationship", id, 0, None)[1]:
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
-                    linkingRelationshipIdentifierValue=x
+                    linkingRelationshipIdentifierValue=x[0].decode("utf-8")
                 )
             )
         return rec.to_dict()
@@ -220,7 +230,18 @@ class Event(Resource):
 
 class EventLinkedRelationships(Resource):
     def get(self, id):
-        return {x: API.url_for(Relationship, id=x) for x in get_kind_links("relationship", id)}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        r = {}
+        q = get_kind_links("relationship", id, args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = check_limit(args['limit'])
+        r['linkingRelationshipIdentifier_list'] = [
+            {'id': x[0].decode("utf-8"), '_link': API.url_for(Relationship, id=x[0].decode("utf-8"))}
+            for x in q[1]
+        ]
+        return r
 
     def post(self, id):
         parser = reqparse.RequestParser()
@@ -233,7 +254,16 @@ class EventLinkedRelationships(Resource):
 
 class AgentList(Resource):
     def get(self):
-        return {x: API.url_for(Agent, id=x) for x in get_kind_list("agent")}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        r = {}
+        q = get_kind_list("agent", args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = check_limit(args['limit'])
+        r['agent_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Agent, id=x[0].decode('utf-8'))}
+                           for x in q[1]]
+        return r
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -259,11 +289,11 @@ class Agent(Resource):
         if not record_exists("agent", id):
             raise ValueError("No such agent! ({})".format(id))
         rec = pyqremis.Agent.from_dict(loads(get_record(id)))
-        for x in get_kind_links("relationship", id):
+        for x in get_kind_links("relationship", id, 0, None)[1]:
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
-                    linkingRelationshipIdentifierValue=x
+                    linkingRelationshipIdentifierValue=x[0].decode("utf-8")
                 )
             )
         return rec.to_dict()
@@ -289,7 +319,18 @@ class Agent(Resource):
 
 class AgentLinkedRelationships(Resource):
     def get(self, id):
-        return {x: API.url_for(Relationship, id=x) for x in get_kind_links("relationship", id)}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        r = {}
+        q = get_kind_links("relationship", id, args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = check_limit(args['limit'])
+        r['linkingRelationshipIdentifier_list'] = [
+            {'id': x[0].decode("utf-8"), '_link': API.url_for(Relationship, id=x[0].decode("utf-8"))}
+            for x in q[1]
+        ]
+        return r
 
     def post(self, id):
         parser = reqparse.RequestParser()
@@ -302,7 +343,16 @@ class AgentLinkedRelationships(Resource):
 
 class RightsList(Resource):
     def get(self):
-        return {x: API.url_for(Rights, id=x) for x in get_kind_list("rights")}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        r = {}
+        q = get_kind_list("rights", args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = check_limit(args['limit'])
+        r['rights_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Rights, id=x[0].decode('utf-8'))}
+                            for x in q[1]]
+        return r
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -328,11 +378,11 @@ class Rights(Resource):
         if not record_exists("rights", id):
             raise ValueError("No such rights! ({})".format(id))
         rec = pyqremis.Rights.from_dict(loads(get_record(id)))
-        for x in get_kind_links("relationship", id):
+        for x in get_kind_links("relationship", id, 0, None)[1]:
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
-                    linkingRelationshipIdentifierValue=x
+                    linkingRelationshipIdentifierValue=x[0].decode("utf-8")
                 )
             )
         return rec.to_dict()
@@ -340,7 +390,18 @@ class Rights(Resource):
 
 class RightsLinkedRelationships(Resource):
     def get(self, id):
-        return {x: API.url_for(Relationship, id=x) for x in get_kind_links("relationship", id)}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        r = {}
+        q = get_kind_links("relationship", id, args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = check_limit(args['limit'])
+        r['linkingRelationshipIdentifier_list'] = [
+            {'id': x[0].decode("utf-8"), '_link': API.url_for(Relationship, id=x[0].decode("utf-8"))}
+            for x in q[1]
+        ]
+        return r
 
     def post(self, id):
         parser = reqparse.RequestParser()
@@ -353,7 +414,18 @@ class RightsLinkedRelationships(Resource):
 
 class RelationshipList(Resource):
     def get(self):
-        return {x: API.url_for(Relationship, id=x) for x in get_kind_list("relationship")}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        r = {}
+        q = get_kind_list("relationship", args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = check_limit(args['limit'])
+        r['relationship_list'] = [
+            {'id': x[0].decode('utf-8'), '_link': API.url_for(Relationship, id=x[0].decode('utf-8'))}
+            for x in q[1]
+        ]
+        return r
 
     def post(self):
         parser = reqparse.RequestParser()
@@ -397,35 +469,35 @@ class Relationship(Resource):
             raise ValueError("No such relationship! ({})".format(id))
         rec = pyqremis.Relationship.from_dict(loads(get_record(id)))
 
-        for x in get_kind_links("object", id):
+        for x in get_kind_links("object", id, 0, None)[1]:
             rec.add_linkingObjectIdentifier(
                 pyqremis.LinkingObjectIdentifier(
                     linkingObjectIdentifierType="uuid",
-                    linkingObjectIdentifierValue=x
+                    linkingObjectIdentifierValue=x[0].decode("utf-8")
                 )
             )
 
-        for x in get_kind_links("agent", id):
+        for x in get_kind_links("agent", id, 0, None)[1]:
             rec.add_linkingAgentIdentifier(
                 pyqremis.LinkingAgentIdentifier(
                     linkingAgentIdentifierType="uuid",
-                    linkingObjectIdentifierValue=x
+                    linkingObjectIdentifierValue=x[0].decode("utf-8")
                 )
             )
 
-        for x in get_kind_links("event", id):
+        for x in get_kind_links("event", id, 0, None)[1]:
             rec.add_linkingEventIdentifier(
                 pyqremis.LinkingEventIdentifier(
                     linkingEventIdentifierType="uuid",
-                    linkingEventIdentifierValue=x
+                    linkingEventIdentifierValue=x[0].decode("utf-8")
                 )
             )
 
-        for x in get_kind_links("rights", id):
+        for x in get_kind_links("rights", id, 0, None)[1]:
             rec.add_linkingRightsIdentifier(
                 pyqremis.LinkingRightsIdentifier(
                     linkingRightsIdentifierType="uuid",
-                    linkingRightsIdentifierValue=x
+                    linkingRightsIdentifierValue=x[0].decode("utf-8")
                 )
             )
         return rec.to_dict()
@@ -433,7 +505,18 @@ class Relationship(Resource):
 
 class RelationshipLinkedObjects(Resource):
     def get(self, id):
-        return {x: API.url_for(Object, id=x) for x in get_kind_links("object", id)}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        r = {}
+        q = get_kind_links("object", id, args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = check_limit(args['limit'])
+        r['linkingObjectIdentifier_list'] = [
+            {'id': x[0].decode("utf-8"), '_link': API.url_for(Object, id=x[0].decode("utf-8"))}
+            for x in q[1]
+        ]
+        return r
 
     def post(self, id):
         parser = reqparse.RequestParser()
@@ -446,7 +529,18 @@ class RelationshipLinkedObjects(Resource):
 
 class RelationshipLinkedEvents(Resource):
     def get(self, id):
-        return {x: API.url_for(Event, id=x) for x in get_kind_links("event", id)}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        r = {}
+        q = get_kind_links("event", id, args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = check_limit(args['limit'])
+        r['linkingEventIdentifier_list'] = [
+            {'id': x[0].decode("utf-8"), '_link': API.url_for(Event, id=x[0].decode("utf-8"))}
+            for x in q[1]
+        ]
+        return r
 
     def post(self, id):
         parser = reqparse.RequestParser()
@@ -459,7 +553,18 @@ class RelationshipLinkedEvents(Resource):
 
 class RelationshipLinkedAgents(Resource):
     def get(self, id):
-        return {x: API.url_for(Agent, id=x) for x in get_kind_links("agent", id)}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        r = {}
+        q = get_kind_links("agent", id, args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = check_limit(args['limit'])
+        r['linkingAgentIdentifier_list'] = [
+            {'id': x[0].decode("utf-8"), '_link': API.url_for(Agent, id=x[0].decode("utf-8"))}
+            for x in q[1]
+        ]
+        return r
 
     def post(self, id):
         parser = reqparse.RequestParser()
@@ -472,7 +577,18 @@ class RelationshipLinkedAgents(Resource):
 
 class RelationshipLinkedRights(Resource):
     def get(self, id):
-        return {x: API.url_for(Rights, id=x) for x in get_kind_links("rights", id)}
+        parser = pagination_args_parser.copy()
+        args = parser.parse_args()
+        r = {}
+        q = get_kind_links("rights", id, args['cursor'], check_limit(args['limit']))
+        r['starting_cursor'] = args['cursor']
+        r['next_cursor'] = q[0] if q[0] != 0 else None
+        r['limit'] = check_limit(args['limit'])
+        r['linkingAgentIdentifier_list'] = [
+            {'id': x[0].decode("utf-8"), '_link': API.url_for(Rights, id=x[0].decode("utf-8"))}
+            for x in q[1]
+        ]
+        return r
 
     def post(self, id):
         parser = reqparse.RequestParser()
