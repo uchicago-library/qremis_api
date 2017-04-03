@@ -132,12 +132,18 @@ class ObjectList(Resource):
                 objId = x.get_objectIdentifierValue()
         if objId is None:
             raise RuntimeError()
-        for x in rec.get_linkingRelationshipIdentifier():
-            if x.get_linkingRelationshipIdentifierType() == "uuid":
-                link_records("object", objId, "relationship", x.get_linkingRelationshipIdentifierValue())
-        rec.del_linkingRelationshipIdentifier()
+        try:
+            for x in rec.get_linkingRelationshipIdentifier():
+                if x.get_linkingRelationshipIdentifierType() == "uuid":
+                    link_records("object", objId, "relationship", x.get_linkingRelationshipIdentifierValue())
+            rec.del_linkingRelationshipIdentifier()
+        except KeyError:
+            pass
         add_record("object", objId, dumps(rec.to_dict()))
-        return objId
+        r = {}
+        r['_link'] = API.url_for(Object, id=objId)
+        r['id'] = objId
+        return r
 
 
 class Object(Resource):
@@ -205,12 +211,18 @@ class EventList(Resource):
                 eventId = x.get_eventIdentifierValue()
         if eventId is None:
             raise RuntimeError()
-        for x in rec.get_linkingRelationshipIdentifier():
-            if x.get_linkingRelationshipIdentifierType() == "uuid":
-                link_records("event", eventId, "relationship", x.get_linkingRelationshipIdentifierValue())
-        rec.del_linkingRelationshipIdentifier()
+        try:
+            for x in rec.get_linkingRelationshipIdentifier():
+                if x.get_linkingRelationshipIdentifierType() == "uuid":
+                    link_records("event", eventId, "relationship", x.get_linkingRelationshipIdentifierValue())
+            rec.del_linkingRelationshipIdentifier()
+        except KeyError:
+            pass
         add_record("event", eventId, dumps(rec.to_dict()))
-        return eventId
+        r = {}
+        r['_link'] = API.url_for(Event, id=eventId)
+        r['id'] = eventId
+        return r
 
 
 class Event(Resource):
@@ -276,12 +288,18 @@ class AgentList(Resource):
                 agentId = x.get_agentIdentifierValue()
         if agentId is None:
             raise RuntimeError()
-        for x in rec.get_linkingRelationshipIdentifier():
-            if x.get_linkingRelationshipIdentifierType() == "uuid":
-                link_records("agent", agentId, "relationship", x.get_linkingRelationshipIdentifierValue())
-        rec.del_linkingRelationshipIdentifier()
+        try:
+            for x in rec.get_linkingRelationshipIdentifier():
+                if x.get_linkingRelationshipIdentifierType() == "uuid":
+                    link_records("agent", agentId, "relationship", x.get_linkingRelationshipIdentifierValue())
+            rec.del_linkingRelationshipIdentifier()
+        except KeyError:
+            pass
         add_record("agent", agentId, dumps(rec.to_dict()))
-        return agentId
+        r = {}
+        r['_link'] = API.url_for(Agent, id=agentId)
+        r['id'] = agentId
+        return r
 
 
 class Agent(Resource):
@@ -314,7 +332,7 @@ class Agent(Resource):
                 link_records("agent", agentId, "relationship", x.get_linkingRelationshipIdentifierValue())
         rec.del_linkingRelationshipIdentifier()
         add_record("agent", agentId, dumps(rec.to_dict()))
-        return agentId
+        return API.url_for(Agent, id=agentId)
 
 
 class AgentLinkedRelationships(Resource):
@@ -365,12 +383,18 @@ class RightsList(Resource):
                 rightsId = x.get_rightsIdentifierValue()
         if rightsId is None:
             raise RuntimeError()
-        for x in rec.get_linkingRelationshipIdentifier():
-            if x.get_linkingRelationshipIdentifierType() == "uuid":
-                link_records("rights", rightsId, "relationship", x.get_linkingRelationshipIdentifierValue())
-        rec.del_linkingRelationshipIdentifier()
+        try:
+            for x in rec.get_linkingRelationshipIdentifier():
+                if x.get_linkingRelationshipIdentifierType() == "uuid":
+                    link_records("rights", rightsId, "relationship", x.get_linkingRelationshipIdentifierValue())
+            rec.del_linkingRelationshipIdentifier()
+        except KeyError:
+            pass
         add_record("rights", rightsId, dumps(rec.to_dict()))
-        return rightsId
+        r = {}
+        r['_link'] = API.url_for(Rights, id=rightsId)
+        r['id'] = rightsId
+        return r
 
 
 class Rights(Resource):
@@ -439,28 +463,43 @@ class RelationshipList(Resource):
         if relationshipId is None:
             raise RuntimeError()
 
-        for x in rec.get_linkingObjectIdentifier():
-            if x.get_linkingObjectIdentifierType() == "uuid":
-                link_records("relationship", relationshipId, "object", x.get_linkingObjectIdentifierValue())
-        rec.del_linkingObjectIdenitifer()
+        try:
+            for x in rec.get_linkingObjectIdentifier():
+                if x.get_linkingObjectIdentifierType() == "uuid":
+                    link_records("relationship", relationshipId, "object", x.get_linkingObjectIdentifierValue())
+            rec.del_linkingObjectIdenitifer()
+        except KeyError:
+            pass
 
-        for x in rec.get_linkingEventIdentifier():
-            if x.get_linkingEventIdentifierType() == "uuid":
-                link_records("relationship", relationshipId, "event", x.get_linkingEventIdentifierValue())
-        rec.del_linkingEventIdenitifer()
+        try:
+            for x in rec.get_linkingEventIdentifier():
+                if x.get_linkingEventIdentifierType() == "uuid":
+                    link_records("relationship", relationshipId, "event", x.get_linkingEventIdentifierValue())
+            rec.del_linkingEventIdenitifer()
+        except KeyError:
+            pass
 
-        for x in rec.get_linkingAgentIdentifier():
-            if x.get_linkingAgentIdentifierType() == "uuid":
-                link_records("relationship", relationshipId, "agent", x.get_linkingAgentIdentifierValue())
-        rec.del_linkingAgentIdenitifer()
+        try:
+            for x in rec.get_linkingAgentIdentifier():
+                if x.get_linkingAgentIdentifierType() == "uuid":
+                    link_records("relationship", relationshipId, "agent", x.get_linkingAgentIdentifierValue())
+            rec.del_linkingAgentIdenitifer()
+        except KeyError:
+            pass
 
-        for x in rec.get_linkingRightsIdentifier():
-            if x.get_linkingRightsIdentifierType() == "uuid":
-                link_records("relationship", relationshipId, "rights", x.get_linkingRightsIdentifierValue())
-        rec.del_linkingRightsIdenitifer()
+        try:
+            for x in rec.get_linkingRightsIdentifier():
+                if x.get_linkingRightsIdentifierType() == "uuid":
+                    link_records("relationship", relationshipId, "rights", x.get_linkingRightsIdentifierValue())
+            rec.del_linkingRightsIdenitifer()
+        except KeyError:
+            pass
 
         add_record("relationship", relationshipId, dumps(rec.to_dict()))
-        return relationshipId
+        r = {}
+        r['_link'] = API.url_for(Relationship, id=relationshipId)
+        r['id'] = relationshipId
+        return r
 
 
 class Relationship(Resource):
@@ -637,6 +676,6 @@ API.add_resource(RightsLinkedRelationships, "/rights_list/<string:id>/linkedRela
 API.add_resource(RelationshipList, "/relationship_list")
 API.add_resource(Relationship, "/relationship_list/<string:id>")
 API.add_resource(RelationshipLinkedObjects, "/relationship_list/<string:id>/linkedObjects")
-API.add_resource(RelationshipLinkedEvents, "/relatiomship_list/<string:id>/linkedEvents")
+API.add_resource(RelationshipLinkedEvents, "/relationship_list/<string:id>/linkedEvents")
 API.add_resource(RelationshipLinkedAgents, "/relationship_list/<string:id>/linkedAgents")
 API.add_resource(RelationshipLinkedRights, "/relationship_list/<string:id>/linkedRights")
