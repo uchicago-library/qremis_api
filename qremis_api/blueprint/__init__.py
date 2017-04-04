@@ -46,14 +46,6 @@ def add_record(kind, id, rec):
 def link_records(kind1, id1, kind2, id2):
     kind3 = None
     id3 = None
-    # This puts kind of a lot of responsibility on the client to dissect the records
-    # before POSTing them and working with linking aftwards
-    # Eg, you can't just say "this is linked to a thing I'm going to add later"
-    # Instead you have to look back through your objects (that you've taken apart)
-    # in your app space saying "and now I will re-establish that object X participates in
-    # relationship Y"
-#    if not record_exists(kind1, id1) or not record_exists(kind2, id2):
-#        raise ValueError("A targeted record does not exist")
     if kind2 != "relationship":
         kind3 = kind2
         id3 = id2
@@ -69,6 +61,16 @@ def link_records(kind1, id1, kind2, id2):
             relationshipNote="Automatically created to facilitate linking"
         )
         add_record(kind2, id2, dumps(relationship_record.to_json()))
+    # This puts kind of a lot of responsibility on the client to dissect the records
+    # before POSTing them and working with linking aftwards
+    # Eg, you can't just say "this is linked to a thing I'm going to add later"
+    # Instead you have to look back through your objects (that you've taken apart)
+    # in your app space saying "and now I will re-establish that object X participates in
+    # relationship Y"
+    # if not record_exists(kind1, id1) or not record_exists(kind2, id2):
+    #     raise ValueError("A targeted record does not exist")
+    # if kind3 is not None and not record_exists(kind3, id3):
+    #     raise ValueError("A targeted record does not exist")
     BLUEPRINT.config['redis'].zadd(id1+"_"+kind2+"Links", 0, id2)
     BLUEPRINT.config['redis'].zadd(id2+"_"+kind1+"Links", 0, id1)
     if kind3 is not None and id3 is not None:
@@ -117,7 +119,8 @@ class ObjectList(Resource):
         r['starting_cursor'] = args['cursor']
         r['next_cursor'] = q[0] if q[0] != 0 else None
         r['limit'] = check_limit(args['limit'])
-        r['object_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Object, id=x[0].decode('utf-8'))}
+        r['object_list'] = [{'id': x[0].decode('utf-8'),
+                             '_link': API.url_for(Object, id=x[0].decode('utf-8'))}
                             for x in q[1]]
         return r
 
