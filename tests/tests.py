@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 
 from pyqremis import *
 
+# TODO: Change this from a hacky script to real unit tests
 
 def make_object():
     objIdentifier = ObjectIdentifier(objectIdentifierType="uuid", objectIdentifierValue=uuid4().hex)
@@ -92,37 +93,177 @@ def main():
         requests.get(args.api_root+simple_relationship_resp.json()['_link']).json() == relationship.to_dict()
     )
 
-    obj_link_resp = requests.get(args.api_root+simple_object_resp.json()['_link']+'/linkedRelationships')
-    obj_link_resp.raise_for_status()
-    obj_link_resp.json()
+    obj_links_resp = requests.get(args.api_root+simple_object_resp.json()['_link']+'/linkedRelationships')
+    obj_links_resp.raise_for_status()
+    obj_links_resp.json()
 
-    event_link_resp = requests.get(args.api_root+simple_event_resp.json()['_link']+'/linkedRelationships')
-    event_link_resp.raise_for_status()
-    event_link_resp.json()
+    event_links_resp = requests.get(args.api_root+simple_event_resp.json()['_link']+'/linkedRelationships')
+    event_links_resp.raise_for_status()
+    event_links_resp.json()
 
-    agent_link_resp = requests.get(args.api_root+simple_agent_resp.json()['_link']+'/linkedRelationships')
-    agent_link_resp.raise_for_status()
-    agent_link_resp.json()
+    agent_links_resp = requests.get(args.api_root+simple_agent_resp.json()['_link']+'/linkedRelationships')
+    agent_links_resp.raise_for_status()
+    agent_links_resp.json()
 
-    rights_link_resp = requests.get(args.api_root+simple_rights_resp.json()['_link']+'/linkedRelationships')
-    rights_link_resp.raise_for_status()
-    rights_link_resp.json()
+    rights_links_resp = requests.get(args.api_root+simple_rights_resp.json()['_link']+'/linkedRelationships')
+    rights_links_resp.raise_for_status()
+    rights_links_resp.json()
 
-    relationship_link_resp1 = requests.get(args.api_root+simple_relationship_resp.json()['_link']+'/linkedObjects')
-    relationship_link_resp1.raise_for_status()
-    relationship_link_resp1.json()
+    relationship_links_resp1 = requests.get(args.api_root+simple_relationship_resp.json()['_link']+'/linkedObjects')
+    relationship_links_resp1.raise_for_status()
+    relationship_links_resp1.json()
 
-    relationship_link_resp2 = requests.get(args.api_root+simple_relationship_resp.json()['_link']+'/linkedEvents')
-    relationship_link_resp2.raise_for_status()
-    relationship_link_resp2.json()
+    relationship_links_resp2 = requests.get(args.api_root+simple_relationship_resp.json()['_link']+'/linkedEvents')
+    relationship_links_resp2.raise_for_status()
+    relationship_links_resp2.json()
 
-    relationship_link_resp3 = requests.get(args.api_root+simple_relationship_resp.json()['_link']+'/linkedAgents')
-    relationship_link_resp3.raise_for_status()
-    relationship_link_resp3.json()
+    relationship_links_resp3 = requests.get(args.api_root+simple_relationship_resp.json()['_link']+'/linkedAgents')
+    relationship_links_resp3.raise_for_status()
+    relationship_links_resp3.json()
 
-    relationship_link_resp4 = requests.get(args.api_root+simple_relationship_resp.json()['_link']+'/linkedRights')
-    relationship_link_resp4.raise_for_status()
-    relationship_link_resp4.json()
+    relationship_links_resp4 = requests.get(args.api_root+simple_relationship_resp.json()['_link']+'/linkedRights')
+    relationship_links_resp4.raise_for_status()
+    relationship_links_resp4.json()
 
+    # TODO: Change these from prints to asserts
+    link_obj_resp = requests.post(
+        args.api_root+simple_object_resp.json()['_link']+'/linkedRelationships',
+        data={
+            "relationship_id": relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        }
+    )
+    print("###############")
+    print(
+        dumps(
+            requests.get(
+                args.api_root+"/object_list" + "/" + obj.get_objectIdentifier()[0].get_objectIdentifierValue()
+            ).json(),
+            indent=4
+        )
+    )
+    print("###############")
+    print(
+        dumps(
+            requests.get(
+                args.api_root+"/relationship_list" + "/" + relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+            ).json(), indent=4
+        )
+    )
+
+    print("###############")
+    link_event_resp = requests.post(
+        args.api_root+simple_event_resp.json()['_link']+'/linkedRelationships',
+        data={
+            "relationship_id": relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        }
+    )
+    print(
+        dumps(
+            requests.get(
+                args.api_root+"/event_list" + "/" + event.get_eventIdentifier()[0].get_eventIdentifierValue()
+            ).json(),
+            indent=4
+        )
+    )
+    print("###############")
+    print(
+        dumps(
+            requests.get(
+                args.api_root+"/relationship_list" + "/" + relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+            ).json(), indent=4
+        )
+    )
+
+    print("###############")
+    link_agent_resp = requests.post(
+        args.api_root+simple_agent_resp.json()['_link']+'/linkedRelationships',
+        data={
+            "relationship_id": relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        }
+    )
+    print(
+        dumps(
+            requests.get(
+                args.api_root+"/agent_list" + "/" + agent.get_agentIdentifier()[0].get_agentIdentifierValue()
+            ).json(),
+            indent=4
+        )
+    )
+    print("###############")
+    print(
+        dumps(
+            requests.get(
+                args.api_root+"/relationship_list" + "/" + relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+            ).json(), indent=4
+        )
+    )
+
+    print("###############")
+    link_rights_resp = requests.post(
+        args.api_root+simple_rights_resp.json()['_link']+'/linkedRelationships',
+        data={
+            "relationship_id": relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        }
+    )
+    print(
+        dumps(
+            requests.get(
+                args.api_root+"/rights_list" + "/" + rights.get_rightsIdentifier()[0].get_rightsIdentifierValue()
+            ).json(),
+            indent=4
+        )
+    )
+    print("###############")
+    print(
+        dumps(
+            requests.get(
+                args.api_root+"/relationship_list" + "/" + relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+            ).json(), indent=4
+        )
+    )
+
+    print("###############")
+    print(
+        dumps(
+            requests.get(
+                args.api_root+"/relationship_list" + "/" +
+                relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue() +
+                "/linkedObjects").json(),
+            indent=4
+        )
+    )
+
+    print("###############")
+    print(
+        dumps(
+            requests.get(
+                args.api_root+"/relationship_list" + "/" +
+                relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue() +
+                "/linkedEvents").json(),
+            indent=4
+        )
+    )
+
+    print("###############")
+    print(
+        dumps(
+            requests.get(
+                args.api_root+"/relationship_list" + "/" +
+                relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue() +
+                "/linkedAgents").json(),
+            indent=4
+        )
+    )
+
+    print("###############")
+    print(
+        dumps(
+            requests.get(
+                args.api_root+"/relationship_list" + "/" +
+                relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue() +
+                "/linkedRights").json(),
+            indent=4
+        )
+    )
 if __name__ == "__main__":
     main()

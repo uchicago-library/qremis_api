@@ -520,7 +520,7 @@ class Relationship(Resource):
             rec.add_linkingAgentIdentifier(
                 pyqremis.LinkingAgentIdentifier(
                     linkingAgentIdentifierType="uuid",
-                    linkingObjectIdentifierValue=x[0].decode("utf-8")
+                    linkingAgentIdentifierValue=x[0].decode("utf-8")
                 )
             )
 
@@ -623,7 +623,7 @@ class RelationshipLinkedRights(Resource):
         r['starting_cursor'] = args['cursor']
         r['next_cursor'] = q[0] if q[0] != 0 else None
         r['limit'] = check_limit(args['limit'])
-        r['linkingAgentIdentifier_list'] = [
+        r['linkingRightsIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Rights, id=x[0].decode("utf-8"))}
             for x in q[1]
         ]
