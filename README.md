@@ -3,7 +3,7 @@ In development
 A web API for managing a qremis "database".
 
 Run a dev server with the following command:
-```bash
+```
 $ QREMIS_API_CONFIG=$(pwd)/config.py sh debug.sh
 ```
 
@@ -11,7 +11,7 @@ The included config.py assumes you're running a redis instance listening on loca
 port 6379, and want to use db 0.
 
 If you have docker you can fire one of these up with
-```bash
+```
 # docker run -p 6379:6379 redis
 ```
 

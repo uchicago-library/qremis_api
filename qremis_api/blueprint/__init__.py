@@ -188,6 +188,7 @@ class ObjectLinkedRelationships(Resource):
         if not record_exists("relationship", args['relationship_id']):
             raise ValueError("No such relationship identifier! ({})".format(args['relationship_id']))
         link_records("object", id, "relationship", args['relationship_id'])
+        return id
 
 
 class EventList(Resource):
@@ -265,6 +266,7 @@ class EventLinkedRelationships(Resource):
         if not record_exists("event", id) or not record_exists("relationship", args['relationship_id']):
             raise ValueError("Non-existant identifier!")
         link_records("event", id, "relationship", args['relationship_id'])
+        return id
 
 
 class AgentList(Resource):
@@ -360,6 +362,7 @@ class AgentLinkedRelationships(Resource):
         if not record_exists("agent", id) or not record_exists("relationship", args['relationship_id']):
             raise ValueError("Non-existant identifier!")
         link_records("agent", id, "relationship", args['relationship_id'])
+        return id
 
 
 class RightsList(Resource):
@@ -437,6 +440,7 @@ class RightsLinkedRelationships(Resource):
         if not record_exists("rights", id) or not record_exists("relationship", args['relationship_id']):
             raise ValueError("Non-existant identifier!")
         link_records("rights", id, "relationship", args['relationship_id'])
+        return id
 
 
 class RelationshipList(Resource):
@@ -567,6 +571,7 @@ class RelationshipLinkedObjects(Resource):
         if not record_exists("relationship", id) or not record_exists("object", args['object_id']):
             raise ValueError("Non-existant identifier!")
         link_records("relationship", id, "object", args['object_id'])
+        return id
 
 
 class RelationshipLinkedEvents(Resource):
@@ -591,6 +596,7 @@ class RelationshipLinkedEvents(Resource):
         if not record_exists("relationship", id) or not record_exists("event", args['event_id']):
             raise ValueError("Non-existant identifier!")
         link_records("relationship", id, "event", args['event_id'])
+        return id
 
 
 class RelationshipLinkedAgents(Resource):
@@ -615,6 +621,7 @@ class RelationshipLinkedAgents(Resource):
         if not record_exists("relationship", id) or not record_exists("agent", args['agent_id']):
             raise ValueError("Non-existant identifier!")
         link_records("relationship", id, "agent", args['agent_id'])
+        return id
 
 
 class RelationshipLinkedRights(Resource):
@@ -639,6 +646,7 @@ class RelationshipLinkedRights(Resource):
         if not record_exists("relationship", id) or not record_exists("rights", args['rights_id']):
             raise ValueError("Non-existant identifier!")
         link_records("relationship", id, "rights", args['rights_id'])
+        return id
 
 
 @BLUEPRINT.record
