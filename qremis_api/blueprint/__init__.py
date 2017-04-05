@@ -29,28 +29,35 @@ pagination_args_parser.add_argument('limit', type=int, default=1000)
 def check_limit(limit):
     if limit > BLUEPRINT.config.get("MAX_LIMIT", 1000):
         log.warn(
-            "Received request above MAX_LIMIT (or 1000 if undefined), capping.")
+            "Received request above MAX_LIMIT ({}), capping.".format(str(BLUEPRINT.config.get("MAX_LIMIT", 1000)))
+        )
         limit = BLUEPRINT.config.get("MAX_LIMIT", 1000)
     return limit
 
 
 def record_exists(kind, id):
+    log.debug("Checking for record existence: {} ({})".format(kind, id))
     return BLUEPRINT.config['redis'].zscore(kind+"List", id) is not None
 
 
 def add_record(kind, id, rec):
+    log.debug("Adding {} record with id {}".format(kind, id))
     BLUEPRINT.config['redis'].setnx(id, rec)
     BLUEPRINT.config['redis'].zadd(kind+"List", 0, id)
 
 
 def link_records(kind1, id1, kind2, id2):
+    log.debug("Attempting to link {}({}) to {}({})".format(kind1, id1, kind2, id2))
     kind3 = None
     id3 = None
     if kind2 != "relationship":
+        log.debug("target record is not a relationship - creating a simple " +
+                  "linking relationship")
         kind3 = kind2
         id3 = id2
         kind2 = "relationship"
         id2 = uuid4().hex
+        log.debug("Minting simple linking relationship ({})".format(id2))
         relationship_record = pyqremis.Relationship(
             pyqremis.RelationshipIdentifier(
                 relationshipIdentifierType='uuid',
@@ -71,10 +78,12 @@ def link_records(kind1, id1, kind2, id2):
     #     raise ValueError("A targeted record does not exist")
     # if kind3 is not None and not record_exists(kind3, id3):
     #     raise ValueError("A targeted record does not exist")
+    # Bidirectional linking
     BLUEPRINT.config['redis'].zadd(id1+"_"+kind2+"Links", 0, id2)
     BLUEPRINT.config['redis'].zadd(id2+"_"+kind1+"Links", 0, id1)
     if kind3 is not None and id3 is not None:
-        BLUEPRINT.config['redis'].zadd(id3+"_"+kind3+"Links", 0, id3)
+        BLUEPRINT.config['redis'].zadd(id2+"_"+kind3+"Links", 0, id3)
+        BLUEPRINT.config['redis'].zadd(id3+"_"+kind2+"Links", 0, id2)
 
 
 def get_record(id):
@@ -112,6 +121,7 @@ class Root(Resource):
 
 class ObjectList(Resource):
     def get(self):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -125,6 +135,7 @@ class ObjectList(Resource):
         return r
 
     def post(self):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("record", type=str, required=True)
         args = parser.parse_args()
@@ -151,6 +162,7 @@ class ObjectList(Resource):
 
 class Object(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("object", id):
             raise ValueError("No such object! ({})".format(id))
         rec = pyqremis.Object.from_dict(loads(get_record(id)))
@@ -166,6 +178,7 @@ class Object(Resource):
 
 class ObjectLinkedRelationships(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -180,6 +193,7 @@ class ObjectLinkedRelationships(Resource):
         return r
 
     def post(self, id):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
@@ -193,6 +207,7 @@ class ObjectLinkedRelationships(Resource):
 
 class EventList(Resource):
     def get(self):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -205,6 +220,7 @@ class EventList(Resource):
         return r
 
     def post(self):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("record", type=str, required=True)
         args = parser.parse_args()
@@ -231,6 +247,7 @@ class EventList(Resource):
 
 class Event(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("event", id):
             raise ValueError("No such event! ({})".format(id))
         rec = pyqremis.Event.from_dict(loads(get_record(id)))
@@ -246,6 +263,7 @@ class Event(Resource):
 
 class EventLinkedRelationships(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -260,6 +278,7 @@ class EventLinkedRelationships(Resource):
         return r
 
     def post(self, id):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
@@ -271,6 +290,7 @@ class EventLinkedRelationships(Resource):
 
 class AgentList(Resource):
     def get(self):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -283,6 +303,7 @@ class AgentList(Resource):
         return r
 
     def post(self):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("record", type=str, required=True)
         args = parser.parse_args()
@@ -309,6 +330,7 @@ class AgentList(Resource):
 
 class Agent(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("agent", id):
             raise ValueError("No such agent! ({})".format(id))
         rec = pyqremis.Agent.from_dict(loads(get_record(id)))
@@ -322,6 +344,7 @@ class Agent(Resource):
         return rec.to_dict()
 
     def post(self):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("record", type=str, required=True)
         args = parser.parse_args()
@@ -342,6 +365,7 @@ class Agent(Resource):
 
 class AgentLinkedRelationships(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -356,6 +380,7 @@ class AgentLinkedRelationships(Resource):
         return r
 
     def post(self, id):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
@@ -367,6 +392,7 @@ class AgentLinkedRelationships(Resource):
 
 class RightsList(Resource):
     def get(self):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -379,6 +405,7 @@ class RightsList(Resource):
         return r
 
     def post(self):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("record", type=str, required=True)
         args = parser.parse_args()
@@ -405,6 +432,7 @@ class RightsList(Resource):
 
 class Rights(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("rights", id):
             raise ValueError("No such rights! ({})".format(id))
         rec = pyqremis.Rights.from_dict(loads(get_record(id)))
@@ -420,6 +448,7 @@ class Rights(Resource):
 
 class RightsLinkedRelationships(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -434,6 +463,7 @@ class RightsLinkedRelationships(Resource):
         return r
 
     def post(self, id):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
@@ -445,6 +475,7 @@ class RightsLinkedRelationships(Resource):
 
 class RelationshipList(Resource):
     def get(self):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -459,6 +490,7 @@ class RelationshipList(Resource):
         return r
 
     def post(self):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("record", type=str, required=True)
         args = parser.parse_args()
@@ -473,7 +505,7 @@ class RelationshipList(Resource):
         try:
             for x in rec.get_linkingObjectIdentifier():
                 if x.get_linkingObjectIdentifierType() == "uuid":
-                    link_records("relationship", relationshipId, "object", x.get_linkingObjectIdentifierValue())
+                    link_records("object", x.get_linkingObjectIdentifierValue(), "relationship", relationshipId)
             rec.del_linkingObjectIdenitifer()
         except KeyError:
             pass
@@ -481,7 +513,7 @@ class RelationshipList(Resource):
         try:
             for x in rec.get_linkingEventIdentifier():
                 if x.get_linkingEventIdentifierType() == "uuid":
-                    link_records("relationship", relationshipId, "event", x.get_linkingEventIdentifierValue())
+                    link_records("event", x.get_linkingEventIdentifierValue(), "relationship". relationshipId)
             rec.del_linkingEventIdenitifer()
         except KeyError:
             pass
@@ -489,7 +521,7 @@ class RelationshipList(Resource):
         try:
             for x in rec.get_linkingAgentIdentifier():
                 if x.get_linkingAgentIdentifierType() == "uuid":
-                    link_records("relationship", relationshipId, "agent", x.get_linkingAgentIdentifierValue())
+                    link_records("agent", x.get_linkingAgentIdentifierValue(), "relationship", relationshipId)
             rec.del_linkingAgentIdenitifer()
         except KeyError:
             pass
@@ -497,7 +529,7 @@ class RelationshipList(Resource):
         try:
             for x in rec.get_linkingRightsIdentifier():
                 if x.get_linkingRightsIdentifierType() == "uuid":
-                    link_records("relationship", relationshipId, "rights", x.get_linkingRightsIdentifierValue())
+                    link_records("rights", x.get_linkingRightsIdentifierValue(), "relationship", relationshipId)
             rec.del_linkingRightsIdenitifer()
         except KeyError:
             pass
@@ -511,6 +543,7 @@ class RelationshipList(Resource):
 
 class Relationship(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("relationship", id):
             raise ValueError("No such relationship! ({})".format(id))
         rec = pyqremis.Relationship.from_dict(loads(get_record(id)))
@@ -551,6 +584,7 @@ class Relationship(Resource):
 
 class RelationshipLinkedObjects(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -565,6 +599,7 @@ class RelationshipLinkedObjects(Resource):
         return r
 
     def post(self, id):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("object_id", type=str, required=True)
         args = parser.parse_args()
@@ -576,6 +611,7 @@ class RelationshipLinkedObjects(Resource):
 
 class RelationshipLinkedEvents(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -590,6 +626,7 @@ class RelationshipLinkedEvents(Resource):
         return r
 
     def post(self, id):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("event_id", type=str, required=True)
         args = parser.parse_args()
@@ -601,6 +638,7 @@ class RelationshipLinkedEvents(Resource):
 
 class RelationshipLinkedAgents(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -615,6 +653,7 @@ class RelationshipLinkedAgents(Resource):
         return r
 
     def post(self, id):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("agent_id", type=str, required=True)
         args = parser.parse_args()
@@ -626,6 +665,7 @@ class RelationshipLinkedAgents(Resource):
 
 class RelationshipLinkedRights(Resource):
     def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         parser = pagination_args_parser.copy()
         args = parser.parse_args()
         r = {}
@@ -640,6 +680,7 @@ class RelationshipLinkedRights(Resource):
         return r
 
     def post(self, id):
+        log.debug("POST received @ {}".format(self.__class__.__name__))
         parser = reqparse.RequestParser()
         parser.add_argument("rights_id", type=str, required=True)
         args = parser.parse_args()
