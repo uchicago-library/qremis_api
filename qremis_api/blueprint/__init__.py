@@ -94,9 +94,12 @@ def get_record(id):
 
 
 def record_is_kind(kind, id):
+    log.debug("Determining if record {} is {}".format(id, kind))
     for x in BLUEPRINT.config['redis'].zscan_iter(kind+"List"):
         if x[0].decode("utf-8") == id:
+            log.debug("Record {} is a(n) {}".format(id, kind))
             return True
+    log.debug("Record {} is not a(n) {}".format(id, kind))
     return False
 
 
@@ -110,6 +113,7 @@ def get_kind_list(kind, cursor, limit):
 
 class Root(Resource):
     def get(self):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
         return {
             "object_list": API.url_for(ObjectList),
             "event_list": API.url_for(EventList),
