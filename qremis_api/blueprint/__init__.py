@@ -510,7 +510,7 @@ class RelationshipList(Resource):
             for x in rec.get_linkingObjectIdentifier():
                 if x.get_linkingObjectIdentifierType() == "uuid":
                     link_records("object", x.get_linkingObjectIdentifierValue(), "relationship", relationshipId)
-            rec.del_linkingObjectIdenitifer()
+            rec.del_linkingObjectIdenitifier()
         except KeyError:
             pass
 
