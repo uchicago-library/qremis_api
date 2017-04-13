@@ -1,6 +1,6 @@
 version: '2'
 services:
-    qremiser:
+    qremis_api:
         build:
             context: .
             args:

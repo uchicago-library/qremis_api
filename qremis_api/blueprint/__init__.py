@@ -510,15 +510,15 @@ class RelationshipList(Resource):
             for x in rec.get_linkingObjectIdentifier():
                 if x.get_linkingObjectIdentifierType() == "uuid":
                     link_records("object", x.get_linkingObjectIdentifierValue(), "relationship", relationshipId)
-            rec.del_linkingObjectIdenitifier()
+            rec.del_linkingObjectIdentifier()
         except KeyError:
             pass
 
         try:
             for x in rec.get_linkingEventIdentifier():
                 if x.get_linkingEventIdentifierType() == "uuid":
-                    link_records("event", x.get_linkingEventIdentifierValue(), "relationship". relationshipId)
-            rec.del_linkingEventIdenitifer()
+                    link_records("event", x.get_linkingEventIdentifierValue(), "relationship", relationshipId)
+            rec.del_linkingEventIdentifier()
         except KeyError:
             pass
 
@@ -526,7 +526,7 @@ class RelationshipList(Resource):
             for x in rec.get_linkingAgentIdentifier():
                 if x.get_linkingAgentIdentifierType() == "uuid":
                     link_records("agent", x.get_linkingAgentIdentifierValue(), "relationship", relationshipId)
-            rec.del_linkingAgentIdenitifer()
+            rec.del_linkingAgentIdentifier()
         except KeyError:
             pass
 
@@ -534,7 +534,7 @@ class RelationshipList(Resource):
             for x in rec.get_linkingRightsIdentifier():
                 if x.get_linkingRightsIdentifierType() == "uuid":
                     link_records("rights", x.get_linkingRightsIdentifierValue(), "relationship", relationshipId)
-            rec.del_linkingRightsIdenitifer()
+            rec.del_linkingRightsIdentifier()
         except KeyError:
             pass
 
