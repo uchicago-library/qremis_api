@@ -43,6 +43,8 @@ container must have access to the redis instance referenced in the config.
 
 TODO
 
+---
+
 ### /object_list
 
 #### GET
@@ -53,13 +55,17 @@ TODO
 
 TODO
 
-### /object_list/<identifier>
+---
+
+### /object_list/\<identifier\>
 
 #### GET
 
 TODO
 
-### /object_list/<identifier>/linkedRelationships
+---
+
+### /object_list/\<identifier\>/linkedRelationships
 
 #### GET
 
@@ -68,6 +74,8 @@ TODO
 #### POST
 
 TODO
+
+---
 
 ### /event_list
 
@@ -79,13 +87,17 @@ TODO
 
 TODO
 
-### /event_list/<identifier>
+---
+
+### /event_list/\<identifier\>
 
 #### GET
 
 TODO
 
-### /event_list/<identifier>/linkedRelationships
+---
+
+### /event_list/\<identifier\>/linkedRelationships
 
 #### GET
 
@@ -94,6 +106,8 @@ TODO
 #### POST
 
 TODO
+
+---
 
 ### /agent_list
 
@@ -105,13 +119,17 @@ TODO
 
 TODO
 
-### /agent_list/<identifier>
+---
+
+### /agent_list/\<identifier\>
 
 #### GET
 
 TODO
 
-### /agent_list/<identifier>/linkedRelationships
+---
+
+### /agent_list/\<identifier\>/linkedRelationships
 
 #### GET
 
@@ -120,6 +138,8 @@ TODO
 #### POST
 
 TODO
+
+---
 
 ### /rights_list
 
@@ -131,13 +151,17 @@ TODO
 
 TODO
 
-### /rights_list/<identifier>
+---
+
+### /rights_list/\<identifier\>
 
 #### GET
 
 TODO
 
-## /rights_list/<identifier>/linkedRelationships
+---
+
+## /rights_list/\<identifier\>/linkedRelationships
 
 #### GET
 
@@ -146,6 +170,8 @@ TODO
 #### POST
 
 TODO
+
+---
 
 ### /relationship_list
 
@@ -157,23 +183,17 @@ TODO
 
 TODO
 
-### /relationship_list/<identifier>
+---
+
+### /relationship_list/\<identifier\>
 
 #### GET
 
 TODO
 
-### /relationship_list/<identifier>/linkedObjects
+---
 
-#### GET
-
-TODO
-
-#### POST
-
-TODO
-
-### /relationship_list/<identifier>/linkedEvents
+### /relationship_list/\<identifier\>/linkedObjects
 
 #### GET
 
@@ -183,7 +203,9 @@ TODO
 
 TODO
 
-### /relationship_list/<identifier>/linkedAgents
+---
+
+### /relationship_list/\<identifier\>/linkedEvents
 
 #### GET
 
@@ -193,7 +215,21 @@ TODO
 
 TODO
 
-### /relationship_list/<identifier>/linkedRights
+---
+
+### /relationship_list/\<identifier\>/linkedAgents
+
+#### GET
+
+TODO
+
+#### POST
+
+TODO
+
+---
+
+### /relationship_list/\<identifier\>/linkedRights
 
 #### GET
 
