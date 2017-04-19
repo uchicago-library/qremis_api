@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 
 
 pagination_args_parser = reqparse.RequestParser()
-pagination_args_parser.add_argument('cursor', type=int, default=0)
+pagination_args_parser.add_argument('cursor', type=str, default="0")
 pagination_args_parser.add_argument('limit', type=int, default=1000)
 
 
@@ -104,7 +104,17 @@ def record_is_kind(kind, id):
 
 
 def get_kind_links(kind, id, cursor, limit):
-    return BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor=cursor, count=limit)
+    # This is kind of like a non-generator version of zscan_iter, bounded
+    # at the given limit (if a limit is set)
+    # see: https://github.com/andymccurdy/redis-py/blob/master/redis/client.py
+    results = []
+    while cursor != 0 and limit != 0:
+        cursor, data = BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor=cursor, count=limit)
+        if limit:
+            limit = limit - len(data)
+        for item in data:
+            results.append(item)
+    return cursor, results
 
 
 def get_kind_list(kind, cursor, limit):
@@ -170,7 +180,7 @@ class Object(Resource):
         if not record_exists("object", id):
             raise ValueError("No such object! ({})".format(id))
         rec = pyqremis.Object.from_dict(loads(get_record(id)))
-        for x in get_kind_links("relationship", id, 0, None)[1]:
+        for x in get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
@@ -255,7 +265,7 @@ class Event(Resource):
         if not record_exists("event", id):
             raise ValueError("No such event! ({})".format(id))
         rec = pyqremis.Event.from_dict(loads(get_record(id)))
-        for x in get_kind_links("relationship", id, 0, None)[1]:
+        for x in get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
@@ -338,7 +348,7 @@ class Agent(Resource):
         if not record_exists("agent", id):
             raise ValueError("No such agent! ({})".format(id))
         rec = pyqremis.Agent.from_dict(loads(get_record(id)))
-        for x in get_kind_links("relationship", id, 0, None)[1]:
+        for x in get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
@@ -440,7 +450,7 @@ class Rights(Resource):
         if not record_exists("rights", id):
             raise ValueError("No such rights! ({})".format(id))
         rec = pyqremis.Rights.from_dict(loads(get_record(id)))
-        for x in get_kind_links("relationship", id, 0, None)[1]:
+        for x in get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
@@ -552,7 +562,7 @@ class Relationship(Resource):
             raise ValueError("No such relationship! ({})".format(id))
         rec = pyqremis.Relationship.from_dict(loads(get_record(id)))
 
-        for x in get_kind_links("object", id, 0, None)[1]:
+        for x in get_kind_links("object", id, "0", None)[1]:
             rec.add_linkingObjectIdentifier(
                 pyqremis.LinkingObjectIdentifier(
                     linkingObjectIdentifierType="uuid",
@@ -560,7 +570,7 @@ class Relationship(Resource):
                 )
             )
 
-        for x in get_kind_links("agent", id, 0, None)[1]:
+        for x in get_kind_links("agent", id, "0", None)[1]:
             rec.add_linkingAgentIdentifier(
                 pyqremis.LinkingAgentIdentifier(
                     linkingAgentIdentifierType="uuid",
@@ -568,7 +578,7 @@ class Relationship(Resource):
                 )
             )
 
-        for x in get_kind_links("event", id, 0, None)[1]:
+        for x in get_kind_links("event", id, "0", None)[1]:
             rec.add_linkingEventIdentifier(
                 pyqremis.LinkingEventIdentifier(
                     linkingEventIdentifierType="uuid",
@@ -576,7 +586,7 @@ class Relationship(Resource):
                 )
             )
 
-        for x in get_kind_links("rights", id, 0, None)[1]:
+        for x in get_kind_links("rights", id, "0", None)[1]:
             rec.add_linkingRightsIdentifier(
                 pyqremis.LinkingRightsIdentifier(
                     linkingRightsIdentifierType="uuid",
