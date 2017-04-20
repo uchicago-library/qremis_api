@@ -1,6 +1,7 @@
 FROM python:3.5-alpine
 COPY . /code
 WORKDIR /code
+ENV QREMIS_API_CONFIG="/code/config.py"
 RUN python setup.py install
 RUN pip install gunicorn
 ARG PORT="8910"
