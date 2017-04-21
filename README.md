@@ -303,7 +303,43 @@ the linked identifier
 ---
 
 ### /rights_list
-TODO
+
+#### GET
+
+##### kwargs
+- cursor ("0"): A cursor to begin the listing at
+- limit (1000): A number of object listings to return
+
+##### Returns
+
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "rights_list": [
+        {"id": the rights identifier,
+         "_link": API.url_for(Rights, id=the rights id)}
+        for each rights in the list
+    ]
+}
+```
+
+#### POST
+
+##### args
+- record: The rights record to add, as a json str
+
+##### Returns
+
+```
+{
+    "_link" = API.url_for(Rights, id=rightsID),
+    "id": The added rights identifier
+}
+```
 
 ---
 
@@ -425,7 +461,13 @@ the qremis record
 
 #### POST
 
-TODO
+##### args
+- object_id: The id of a object to link to the relationship
+
+##### Returns
+```
+the linked identifier
+```
 
 ---
 
@@ -455,7 +497,13 @@ TODO
 
 #### POST
 
-TODO
+##### args
+- event_id: The id of a event to link to the relationship
+
+##### Returns
+```
+the linked identifier
+```
 
 ---
 
@@ -485,7 +533,13 @@ TODO
 
 #### POST
 
-TODO
+##### args
+- agent_id: The id of a agent to link to the relationship
+
+##### Returns
+```
+the linked identifier
+```
 
 ---
 
@@ -515,7 +569,14 @@ TODO
 
 #### POST
 
-TODO
+##### args
+- rights_id: The id of a rights to link to the relationship
+
+##### Returns
+```
+the linked identifier
+```
+
 
 
 Author: balsamo@uchicago.edu
