@@ -43,6 +43,7 @@ container must have access to the redis instance referenced in the config.
 
 ##### Returns
 
+```
 {
     "object_list": API.url_for(ObjectList),
     "event_list": API.url_for(EventList),
@@ -50,6 +51,7 @@ container must have access to the redis instance referenced in the config.
     "rights_list": API.url_for(RightsList),
     "relationship_list": API.url_for(RelationshipList)
 }
+```
 
 ---
 
@@ -98,19 +100,41 @@ container must have access to the redis instance referenced in the config.
 
 #### GET
 
-TODO
+```
+[the qremis record itself]
+```
 
 ---
 
 ### /object_list/\<identifier\>/linkedRelationships
 
 #### GET
-
-TODO
+##### Returns
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "linkingRelationshipIdentifier_list": [
+        {"id": the linked relationship identifier,
+         "_link": a link to the relationship in the API}
+        for each relationship linked from the object
+    ]
+}
+```
 
 #### POST
 
-TODO
+##### args
+- relationship_id: The id of a relationship to link to the object
+
+##### Returns
+```
+the linked identifier
+```
+
 
 ---
 
@@ -118,7 +142,25 @@ TODO
 
 #### GET
 
-TODO
+##### kwargs
+- cursor ("0"): A cursor to begin the listing at
+- limit (1000): A number of object listings to return
+
+##### Returns
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "event_list": [
+        {"id": the event identifier,
+         "_link": API.url_for(Event, id=the event id)}
+        for each event in the list
+    ]
+}
+```
 
 #### POST
 
