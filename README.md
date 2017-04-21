@@ -223,11 +223,40 @@ the linked identifier
 
 #### GET
 
-TODO
+##### kwargs
+- cursor ("0"): A cursor to begin the listing at
+- limit (1000): A number of object listings to return
+
+##### Returns
+
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "agent_list": [
+        {"id": the agent identifier,
+         "_link": API.url_for(Agent, id=the agent id)}
+        for each agent in the list
+    ]
+}
+```
 
 #### POST
 
-TODO
+##### args
+- record: The agent record to add, as a json str
+
+##### Returns
+
+```
+{
+    "_link" = API.url_for(Agent, id=agentID),
+    "id": The added agent identifier
+}
+```
 
 ---
 
@@ -235,7 +264,9 @@ TODO
 
 #### GET
 
-TODO
+```
+the qremis record
+```
 
 ---
 
@@ -272,13 +303,6 @@ the linked identifier
 ---
 
 ### /rights_list
-
-#### GET
-
-TODO
-
-#### POST
-
 TODO
 
 ---
@@ -287,7 +311,9 @@ TODO
 
 #### GET
 
-TODO
+```
+the qremis record
+```
 
 ---
 
@@ -327,11 +353,39 @@ the linked identifier
 
 #### GET
 
-TODO
+##### kwargs
+- cursor ("0"): A cursor to begin the listing at
+- limit (1000): A number of object listings to return
+
+##### Returns
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "relationship_list": [
+        {"id": the relationship identifier,
+         "_link": API.url_for(Relationship, id=the relationship id)}
+        for each relationship in the list
+    ]
+}
+```
 
 #### POST
 
-TODO
+##### args
+- record: The relationship record to add, as a json str
+
+##### Returns
+
+```
+{
+    "_link" = API.url_for(Relationship, id=relationshipId),
+    "id": The added relationship identifier
+}
+```
 
 ---
 
@@ -339,7 +393,9 @@ TODO
 
 #### GET
 
-TODO
+```
+the qremis record
+```
 
 ---
 
@@ -347,7 +403,25 @@ TODO
 
 #### GET
 
-TODO
+##### kwargs
+- cursor ("0"): A cursor to begin the listing at
+- limit (1000): A number of object listings to return
+
+##### Returns
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "object_list": [
+        {"id": the object identifier,
+         "_link": API.url_for(Object, id=the object id)}
+        for each object in the list
+    ]
+}
+```
 
 #### POST
 
@@ -359,7 +433,25 @@ TODO
 
 #### GET
 
-TODO
+##### kwargs
+- cursor ("0"): A cursor to begin the listing at
+- limit (1000): A number of object listings to return
+
+##### Returns
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "event_list": [
+        {"id": the event identifier,
+         "_link": API.url_for(Event, id=the event id)}
+        for each event in the list
+    ]
+}
+```
 
 #### POST
 
@@ -371,7 +463,25 @@ TODO
 
 #### GET
 
-TODO
+##### kwargs
+- cursor ("0"): A cursor to begin the listing at
+- limit (1000): A number of object listings to return
+
+##### Returns
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "agent_list": [
+        {"id": the agent identifier,
+         "_link": API.url_for(Agent, id=the agent id)}
+        for each agent in the list
+    ]
+}
+```
 
 #### POST
 
@@ -383,7 +493,25 @@ TODO
 
 #### GET
 
-TODO
+##### kwargs
+- cursor ("0"): A cursor to begin the listing at
+- limit (1000): A number of object listings to return
+
+##### Returns
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "rights_list": [
+        {"id": the rights identifier,
+         "_link": API.url_for(Rights, id=the rights id)}
+        for each rights in the list
+    ]
+}
+```
 
 #### POST
 
