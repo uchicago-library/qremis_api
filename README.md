@@ -41,7 +41,15 @@ container must have access to the redis instance referenced in the config.
 
 #### GET
 
-TODO
+##### Returns
+
+{
+    "object_list": API.url_for(ObjectList),
+    "event_list": API.url_for(EventList),
+    "agent_list": API.url_for(AgentList),
+    "rights_list": API.url_for(RightsList),
+    "relationship_list": API.url_for(RelationshipList)
+}
 
 ---
 
@@ -49,11 +57,40 @@ TODO
 
 #### GET
 
-TODO
+##### kwargs
+- cursor ("0"): A cursor to begin the listing at
+- limit (1000): A number of object listings to return
+
+##### Returns
+
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "object_list": [
+        {"id": the object identifier,
+         "_link": API.url_for(Object, id=the object id)}
+        for each object in the list
+    ]
+}
+```
 
 #### POST
 
-TODO
+##### args
+- record: The object record to add, as a json str
+
+##### Returns
+
+```
+{
+    "_link" = API.url_for(Object, id=objId),
+    "id": The added object identifier
+}
+```
 
 ---
 
