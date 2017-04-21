@@ -101,7 +101,7 @@ container must have access to the redis instance referenced in the config.
 #### GET
 
 ```
-[the qremis record itself]
+the qremis record
 ```
 
 ---
@@ -164,7 +164,17 @@ the linked identifier
 
 #### POST
 
-TODO
+##### args
+- record: The event record to add, as a json str
+
+##### Returns
+
+```
+{
+    "_link" = API.url_for(Event, id=eventId),
+    "id": The added event identifier
+}
+```
 
 ---
 
@@ -172,19 +182,40 @@ TODO
 
 #### GET
 
-TODO
+```
+the qremis record
+```
 
 ---
 
 ### /event_list/\<identifier\>/linkedRelationships
 
 #### GET
-
-TODO
+##### Returns
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "linkingRelationshipIdentifier_list": [
+        {"id": the linked relationship identifier,
+         "_link": a link to the relationship in the API}
+        for each relationship linked from the object
+    ]
+}
+```
 
 #### POST
 
-TODO
+##### args
+- relationship_id: The id of a relationship to link to the object
+
+##### Returns
+```
+the linked identifier
+```
 
 ---
 
@@ -210,13 +241,33 @@ TODO
 
 ### /agent_list/\<identifier\>/linkedRelationships
 
-#### GET
 
-TODO
+#### GET
+##### Returns
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "linkingRelationshipIdentifier_list": [
+        {"id": the linked relationship identifier,
+         "_link": a link to the relationship in the API}
+        for each relationship linked from the object
+    ]
+}
+```
 
 #### POST
 
-TODO
+##### args
+- relationship_id: The id of a relationship to link to the object
+
+##### Returns
+```
+the linked identifier
+```
 
 ---
 
@@ -242,13 +293,33 @@ TODO
 
 ## /rights_list/\<identifier\>/linkedRelationships
 
-#### GET
 
-TODO
+#### GET
+##### Returns
+```
+{
+    "starting_cursor": The cursor at which the listing began,
+    "next_cursor": The cursor for starting at listing at the
+                   next element in the list, or None if the 
+                   end of the list has been reached,
+    "limit": The limit to the number of listings,
+    "linkingRelationshipIdentifier_list": [
+        {"id": the linked relationship identifier,
+         "_link": a link to the relationship in the API}
+        for each relationship linked from the object
+    ]
+}
+```
 
 #### POST
 
-TODO
+##### args
+- relationship_id: The id of a relationship to link to the object
+
+##### Returns
+```
+the linked identifier
+```
 
 ---
 
