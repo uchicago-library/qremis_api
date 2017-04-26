@@ -112,8 +112,10 @@ def get_kind_links(kind, id, cursor, limit):
     # This is kind of like a non-generator version of zscan_iter, bounded
     # at the given limit (if a limit is set)
     # see: https://github.com/andymccurdy/redis-py/blob/master/redis/client.py
+    # Note also the uncertainty in the "count" kwarg: https://redis.io/commands/scan#the-count-option
+    # Thus the > 0.
     results = []
-    while cursor != 0 and limit != 0:
+    while cursor != 0 and limit > 0:
         cursor, data = BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor=cursor, count=limit)
         if limit:
             limit = limit - len(data)
@@ -145,9 +147,10 @@ class ObjectList(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_list("object", args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['object_list'] = [{'id': x[0].decode('utf-8'),
                              '_link': API.url_for(Object, id=x[0].decode('utf-8'))}
                             for x in q[1]]
@@ -202,9 +205,10 @@ class ObjectLinkedRelationships(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("relationship", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRelationshipIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link':  API.url_for(Relationship, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -231,9 +235,10 @@ class EventList(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_list("event", args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['event_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Event, id=x[0].decode('utf-8'))}
                            for x in q[1]]
         return r
@@ -287,9 +292,10 @@ class EventLinkedRelationships(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("relationship", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRelationshipIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Relationship, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -314,9 +320,10 @@ class AgentList(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_list("agent", args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['agent_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Agent, id=x[0].decode('utf-8'))}
                            for x in q[1]]
         return r
@@ -389,9 +396,10 @@ class AgentLinkedRelationships(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("relationship", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRelationshipIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Relationship, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -416,9 +424,10 @@ class RightsList(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_list("rights", args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['rights_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Rights, id=x[0].decode('utf-8'))}
                             for x in q[1]]
         return r
@@ -472,9 +481,10 @@ class RightsLinkedRelationships(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("relationship", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRelationshipIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Relationship, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -499,9 +509,10 @@ class RelationshipList(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_list("relationship", args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['relationship_list'] = [
             {'id': x[0].decode('utf-8'), '_link': API.url_for(Relationship, id=x[0].decode('utf-8'))}
             for x in q[1]
@@ -608,9 +619,10 @@ class RelationshipLinkedObjects(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("object", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingObjectIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Object, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -635,9 +647,10 @@ class RelationshipLinkedEvents(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("event", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingEventIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Event, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -662,9 +675,10 @@ class RelationshipLinkedAgents(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("agent", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingAgentIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Agent, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -689,9 +703,10 @@ class RelationshipLinkedRights(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("rights", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRightsIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Rights, id=x[0].decode("utf-8"))}
             for x in q[1]
