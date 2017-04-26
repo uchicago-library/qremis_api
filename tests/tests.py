@@ -53,6 +53,7 @@ def add_linkingRelationshipIdentifier(entity, rel_id):
 
 class AddEntitiesTests(unittest.TestCase):
     def setUp(self):
+        qremis_api.app.config['TESTING'] = True
         self.app = qremis_api.app.test_client()
         qremis_api.blueprint.BLUEPRINT.config['redis'] = redis.StrictRedis(
             host='localhost',
