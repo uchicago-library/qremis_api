@@ -169,6 +169,26 @@ class AddEntitiesTests(unittest.TestCase):
         grj = self.response_200_json(grv)
         self.assertEqual(entity_json, grj)
 
+    def test_getNonExistantObject(self):
+        grv = self.app.get("/object_list/{}".format(uuid4().hex))
+        self.assertEqual(grv.status_code, 404)
+
+    def test_getNonExistantEvent(self):
+        grv = self.app.get("/event_list/{}".format(uuid4().hex))
+        self.assertEqual(grv.status_code, 404)
+
+    def test_getNonExistantAgent(self):
+        grv = self.app.get("/agent_list/{}".format(uuid4().hex))
+        self.assertEqual(grv.status_code, 404)
+
+    def test_getNonExistantRights(self):
+        grv = self.app.get("/rights_list/{}".format(uuid4().hex))
+        self.assertEqual(grv.status_code, 404)
+
+    def test_getNonExistantRelationship(self):
+        grv = self.app.get("/relationship_list/{}".format(uuid4().hex))
+        self.assertEqual(grv.status_code, 404)
+
     def test_getObjectListPagination(self):
         pass
 

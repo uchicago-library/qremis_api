@@ -2,7 +2,7 @@ import logging
 from uuid import uuid4
 from json import dumps, loads
 
-from flask import Blueprint
+from flask import Blueprint, abort
 from flask_restful import Resource, Api, reqparse
 import redis
 
@@ -191,7 +191,7 @@ class Object(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("object", id):
-            raise ValueError("No such object! ({})".format(id))
+            abort(404)
         rec = pyqremis.Object.from_dict(loads(get_record(id)))
         for x in get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
@@ -207,7 +207,7 @@ class SparseObject(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("object", id):
-            raise ValueError("No such object! ({})".format(id))
+            abort(404)
         rec = pyqremis.Object.from_dict(loads(get_record(id)))
         return rec.to_dict()
 
@@ -287,7 +287,7 @@ class Event(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("event", id):
-            raise ValueError("No such event! ({})".format(id))
+            abort(404)
         rec = pyqremis.Event.from_dict(loads(get_record(id)))
         for x in get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
@@ -303,7 +303,7 @@ class SparseEvent(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("event", id):
-            raise ValueError("No such event! ({})".format(id))
+            abort(404)
         rec = pyqremis.Event.from_dict(loads(get_record(id)))
         return rec.to_dict()
 
@@ -381,7 +381,7 @@ class Agent(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("agent", id):
-            raise ValueError("No such agent! ({})".format(id))
+            abort(404)
         rec = pyqremis.Agent.from_dict(loads(get_record(id)))
         for x in get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
@@ -397,7 +397,7 @@ class SparseAgent(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("agent", id):
-            raise ValueError("No such agent! ({})".format(id))
+            abort(404)
         rec = pyqremis.Agent.from_dict(loads(get_record(id)))
         return rec.to_dict()
 
@@ -475,7 +475,7 @@ class Rights(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("rights", id):
-            raise ValueError("No such rights! ({})".format(id))
+            abort(404)
         rec = pyqremis.Rights.from_dict(loads(get_record(id)))
         for x in get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
@@ -491,7 +491,7 @@ class SparseRights(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("rights", id):
-            raise ValueError("No such rights! ({})".format(id))
+            abort(404)
         rec = pyqremis.Rights.from_dict(loads(get_record(id)))
         return rec.to_dict()
 
@@ -597,7 +597,7 @@ class Relationship(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("relationship", id):
-            raise ValueError("No such relationship! ({})".format(id))
+            abort(404)
         rec = pyqremis.Relationship.from_dict(loads(get_record(id)))
 
         for x in get_kind_links("object", id, "0", None)[1]:
@@ -638,7 +638,7 @@ class SparseRelationship(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("relationship", id):
-            raise ValueError("No such relationship! ({})".format(id))
+            abort(404)
         rec = pyqremis.Relationship.from_dict(loads(get_record(id)))
         return rec.to_dict()
 
