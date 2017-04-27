@@ -311,27 +311,90 @@ class AddEntitiesTests(unittest.TestCase):
         pass
 
     def test_getObjectLinkedRelationships(self):
-        pass
+        # TODO: Link stuff, check it exists
+        entity = make_object()
+        entity_json = entity.to_dict()
+        eprv = self.app.post("/object_list", data={"record": json.dumps(entity_json)})
+        eprj = self.response_200_json(eprv)
+        rv = self.app.get("/object_list/{}/linkedRelationships".format(eprj['id']))
+        rj = self.response_200_json(rv)
 
     def test_getEventLinkedRelationships(self):
-        pass
+        # TODO: Link stuff, check it exists
+        entity = make_event()
+        entity_json = entity.to_dict()
+        eprv = self.app.post("/event_list", data={"record": json.dumps(entity_json)})
+        eprj = self.response_200_json(eprv)
+        rv = self.app.get("/event_list/{}/linkedRelationships".format(eprj['id']))
+        rj = self.response_200_json(rv)
 
     def test_getAgentLinkedRelationships(self):
-        pass
+        # TODO: Link stuff, check it exists
+        entity = make_agent()
+        entity_json = entity.to_dict()
+        eprv = self.app.post("/agent_list", data={"record": json.dumps(entity_json)})
+        eprj = self.response_200_json(eprv)
+        rv = self.app.get("/agent_list/{}/linkedRelationships".format(eprj['id']))
+        rj = self.response_200_json(rv)
 
     def test_getRightsLinkedRelationships(self):
-        pass
+        # TODO: Link stuff, check it exists
+        entity = make_rights()
+        entity_json = entity.to_dict()
+        eprv = self.app.post("/rights_list", data={"record": json.dumps(entity_json)})
+        eprj = self.response_200_json(eprv)
+        rv = self.app.get("/rights_list/{}/linkedRelationships".format(eprj['id']))
+        rj = self.response_200_json(rv)
 
     def test_getRelationshipLinkedObjects(self):
-        pass
+        # TODO: Link stuff, check it exists
+        entity = make_relationship()
+        entity_json = entity.to_dict()
+        eprv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
+        eprj = self.response_200_json(eprv)
+        rv = self.app.get("/relationship_list/{}/linkedObjects".format(eprj['id']))
+        rj = self.response_200_json(rv)
 
     def test_getRelationshipLinkedEvents(self):
-        pass
+        # TODO: Link stuff, check it exists
+        entity = make_relationship()
+        entity_json = entity.to_dict()
+        eprv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
+        eprj = self.response_200_json(eprv)
+        rv = self.app.get("/relationship_list/{}/linkedEvents".format(eprj['id']))
+        rj = self.response_200_json(rv)
 
     def test_getRelationshipLinkedAgents(self):
-        pass
+        # TODO: Link stuff, check it exists
+        entity = make_relationship()
+        entity_json = entity.to_dict()
+        eprv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
+        eprj = self.response_200_json(eprv)
+        rv = self.app.get("/relationship_list/{}/linkedAgents".format(eprj['id']))
+        rj = self.response_200_json(rv)
 
     def test_getRelationshipLinkedRights(self):
+        # TODO: Link stuff, check it exists
+        entity = make_relationship()
+        entity_json = entity.to_dict()
+        eprv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
+        eprj = self.response_200_json(eprv)
+        rv = self.app.get("/relationship_list/{}/linkedRights".format(eprj['id']))
+        rj = self.response_200_json(rv)
+
+    def test_getSparseObject(self):
+        pass
+
+    def test_getSparseEvent(self):
+        pass
+
+    def test_getSparseAgent(self):
+        pass
+
+    def test_getSparseRights(self):
+        pass
+
+    def test_getSparseRelationship(self):
         pass
 
 if __name__ == '__main__':
