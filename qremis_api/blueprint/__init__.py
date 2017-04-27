@@ -115,12 +115,17 @@ def get_kind_links(kind, id, cursor, limit):
     # Note also the uncertainty in the "count" kwarg: https://redis.io/commands/scan#the-count-option
     # Thus the > 0.
     results = []
-    while cursor != 0 and limit > 0:
-        cursor, data = BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor=cursor, count=limit)
-        if limit:
+    if limit:
+        while cursor != 0 and limit > 0:
+            cursor, data = BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor=cursor, count=limit)
             limit = limit - len(data)
-        for item in data:
-            results.append(item)
+            for item in data:
+                results.append(item)
+    else:
+        while cursor != 0:
+            cursor, data = BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor=cursor, count=limit)
+            for item in data:
+                results.append(item)
     return cursor, results
 
 

@@ -125,19 +125,49 @@ class AddEntitiesTests(unittest.TestCase):
         rj = self.response_200_json(rv)
 
     def test_getObject(self):
-        pass
+        entity = make_object()
+        entity_json = entity.to_dict()
+        prv = self.app.post("/object_list", data={"record": json.dumps(entity_json)})
+        prj = self.response_200_json(prv)
+        grv = self.app.get("/object_list/{}".format(prj['id']))
+        grj = self.response_200_json(grv)
+        self.assertEqual(entity_json, grj)
 
     def test_getEvent(self):
-        pass
+        entity = make_event()
+        entity_json = entity.to_dict()
+        prv = self.app.post("/event_list", data={"record": json.dumps(entity_json)})
+        prj = self.response_200_json(prv)
+        grv = self.app.get("/event_list/{}".format(prj['id']))
+        grj = self.response_200_json(grv)
+        self.assertEqual(entity_json, grj)
 
     def test_getAgent(self):
-        pass
+        entity = make_agent()
+        entity_json = entity.to_dict()
+        prv = self.app.post("/agent_list", data={"record": json.dumps(entity_json)})
+        prj = self.response_200_json(prv)
+        grv = self.app.get("/agent_list/{}".format(prj['id']))
+        grj = self.response_200_json(grv)
+        self.assertEqual(entity_json, grj)
 
     def test_getRights(self):
-        pass
+        entity = make_rights()
+        entity_json = entity.to_dict()
+        prv = self.app.post("/rights_list", data={"record": json.dumps(entity_json)})
+        prj = self.response_200_json(prv)
+        grv = self.app.get("/rights_list/{}".format(prj['id']))
+        grj = self.response_200_json(grv)
+        self.assertEqual(entity_json, grj)
 
-    def test_getRelationships(self):
-        pass
+    def test_getRelationship(self):
+        entity = make_relationship()
+        entity_json = entity.to_dict()
+        prv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
+        prj = self.response_200_json(prv)
+        grv = self.app.get("/relationship_list/{}".format(prj['id']))
+        grj = self.response_200_json(grv)
+        self.assertEqual(entity_json, grj)
 
     def test_getObjectListPagination(self):
         pass
