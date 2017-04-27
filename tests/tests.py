@@ -62,16 +62,13 @@ class AddEntitiesTests(unittest.TestCase):
         )
 
     def tearDown(self):
-        self.app.blueprint.BLUEPRINT['redis'].flushdb()
+        qremis_api.blueprint.BLUEPRINT.config['redis'].flushdb()
 
     def response_200_json(self, rv):
         self.assertEqual(rv.status_code, 200)
         rt = rv.data.decode()
         rj = json.loads(rt)
         return rj
-
-    def tearDown(self):
-        pass
 
     def test_getRoot(self):
         rv = self.app.get("/")
@@ -98,19 +95,34 @@ class AddEntitiesTests(unittest.TestCase):
         rj = self.response_200_json(rv)
 
     def test_postObject(self):
-        pass
+        entity = make_object()
+        entity_json = entity.to_dict()
+        rv = self.app.post("/object_list", data={"record": json.dumps(entity_json)})
+        rj = self.response_200_json(rv)
 
     def test_postEvent(self):
-        pass
+        entity = make_event()
+        entity_json = entity.to_dict()
+        rv = self.app.post("/event_list", data={"record": json.dumps(entity_json)})
+        rj = self.response_200_json(rv)
 
     def test_postAgent(self):
-        pass
+        entity = make_agent()
+        entity_json = entity.to_dict()
+        rv = self.app.post("/agent_list", data={"record": json.dumps(entity_json)})
+        rj = self.response_200_json(rv)
 
     def test_postRights(self):
-        pass
+        entity = make_rights()
+        entity_json = entity.to_dict()
+        rv = self.app.post("/rights_list", data={"record": json.dumps(entity_json)})
+        rj = self.response_200_json(rv)
 
-    def test_postRelationships(self):
-        pass
+    def test_postRelationship(self):
+        entity = make_relationship()
+        entity_json = entity.to_dict()
+        rv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
+        rj = self.response_200_json(rv)
 
     def test_getObject(self):
         pass
@@ -125,6 +137,21 @@ class AddEntitiesTests(unittest.TestCase):
         pass
 
     def test_getRelationships(self):
+        pass
+
+    def test_getObjectListPagination(self):
+        pass
+
+    def test_getEventListPagination(self):
+        pass
+
+    def test_getAgentListPagination(self):
+        pass
+
+    def test_getRightsListPagination(self):
+        pass
+
+    def test_getRelationshipListPagination(self):
         pass
 
     def test_manuallyLink(self):
