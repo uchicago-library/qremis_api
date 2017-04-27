@@ -190,19 +190,119 @@ class AddEntitiesTests(unittest.TestCase):
         self.assertEqual(grv.status_code, 404)
 
     def test_getObjectListPagination(self):
-        pass
+        entities = []
+        for _ in range(1234):
+            entities.append(make_object())
+        entities_ids = [x.get_objectIdentifier()[0].get_objectIdentifierValue() for x in entities]
+        self.assertEqual(len(entities_ids), len(set(entities_ids)))
+        self.assertEqual(len(entities_ids), 1234)
+        entities_dicts = [x.to_dict() for x in entities]
+        for x in entities_dicts:
+            self.app.post("/object_list", data={"record": json.dumps(x)})
+        comp_entities_ids = []
+        next_cursor = "0"
+        while next_cursor:
+            rv = self.app.get("/object_list", data={"cursor": next_cursor, "limit": 200})
+            rj = self.response_200_json(rv)
+            next_cursor = rj['pagination']['next_cursor']
+            for x in rj['object_list']:
+                comp_entities_ids.append(x['id'])
+        self.assertEqual(len(comp_entities_ids), 1234)
+        self.assertEqual(len(comp_entities_ids), len(set(comp_entities_ids)))
+        for x in comp_entities_ids:
+            self.assertIn(x, entities_ids)
 
     def test_getEventListPagination(self):
-        pass
+        entities = []
+        for _ in range(1234):
+            entities.append(make_event())
+        entities_ids = [x.get_eventIdentifier()[0].get_eventIdentifierValue() for x in entities]
+        self.assertEqual(len(entities_ids), len(set(entities_ids)))
+        self.assertEqual(len(entities_ids), 1234)
+        entities_dicts = [x.to_dict() for x in entities]
+        for x in entities_dicts:
+            self.app.post("/event_list", data={"record": json.dumps(x)})
+        comp_entities_ids = []
+        next_cursor = "0"
+        while next_cursor:
+            rv = self.app.get("/event_list", data={"cursor": next_cursor, "limit": 200})
+            rj = self.response_200_json(rv)
+            next_cursor = rj['pagination']['next_cursor']
+            for x in rj['event_list']:
+                comp_entities_ids.append(x['id'])
+        self.assertEqual(len(comp_entities_ids), 1234)
+        self.assertEqual(len(comp_entities_ids), len(set(comp_entities_ids)))
+        for x in comp_entities_ids:
+            self.assertIn(x, entities_ids)
 
     def test_getAgentListPagination(self):
-        pass
+        entities = []
+        for _ in range(1234):
+            entities.append(make_agent())
+        entities_ids = [x.get_agentIdentifier()[0].get_agentIdentifierValue() for x in entities]
+        self.assertEqual(len(entities_ids), len(set(entities_ids)))
+        self.assertEqual(len(entities_ids), 1234)
+        entities_dicts = [x.to_dict() for x in entities]
+        for x in entities_dicts:
+            self.app.post("/agent_list", data={"record": json.dumps(x)})
+        comp_entities_ids = []
+        next_cursor = "0"
+        while next_cursor:
+            rv = self.app.get("/agent_list", data={"cursor": next_cursor, "limit": 200})
+            rj = self.response_200_json(rv)
+            next_cursor = rj['pagination']['next_cursor']
+            for x in rj['agent_list']:
+                comp_entities_ids.append(x['id'])
+        self.assertEqual(len(comp_entities_ids), 1234)
+        self.assertEqual(len(comp_entities_ids), len(set(comp_entities_ids)))
+        for x in comp_entities_ids:
+            self.assertIn(x, entities_ids)
 
     def test_getRightsListPagination(self):
-        pass
+        entities = []
+        for _ in range(1234):
+            entities.append(make_rights())
+        entities_ids = [x.get_rightsIdentifier()[0].get_rightsIdentifierValue() for x in entities]
+        self.assertEqual(len(entities_ids), len(set(entities_ids)))
+        self.assertEqual(len(entities_ids), 1234)
+        entities_dicts = [x.to_dict() for x in entities]
+        for x in entities_dicts:
+            self.app.post("/rights_list", data={"record": json.dumps(x)})
+        comp_entities_ids = []
+        next_cursor = "0"
+        while next_cursor:
+            rv = self.app.get("/rights_list", data={"cursor": next_cursor, "limit": 200})
+            rj = self.response_200_json(rv)
+            next_cursor = rj['pagination']['next_cursor']
+            for x in rj['rights_list']:
+                comp_entities_ids.append(x['id'])
+        self.assertEqual(len(comp_entities_ids), 1234)
+        self.assertEqual(len(comp_entities_ids), len(set(comp_entities_ids)))
+        for x in comp_entities_ids:
+            self.assertIn(x, entities_ids)
 
     def test_getRelationshipListPagination(self):
-        pass
+        entities = []
+        for _ in range(1234):
+            entities.append(make_relationship())
+        entities_ids = [x.get_relationshipIdentifier()[0].get_relationshipIdentifierValue() for x in entities]
+        self.assertEqual(len(entities_ids), len(set(entities_ids)))
+        self.assertEqual(len(entities_ids), 1234)
+        entities_dicts = [x.to_dict() for x in entities]
+        for x in entities_dicts:
+            self.app.post("/relationship_list", data={"record": json.dumps(x)})
+        comp_entities_ids = []
+        next_cursor = "0"
+        while next_cursor:
+            rv = self.app.get("/relationship_list", data={"cursor": next_cursor, "limit": 200})
+            rj = self.response_200_json(rv)
+            next_cursor = rj['pagination']['next_cursor']
+            for x in rj['relationship_list']:
+                comp_entities_ids.append(x['id'])
+        self.assertEqual(len(comp_entities_ids), 1234)
+        self.assertEqual(len(comp_entities_ids), len(set(comp_entities_ids)))
+        for x in comp_entities_ids:
+            self.assertIn(x, entities_ids)
 
     def test_manuallyLink(self):
         pass
