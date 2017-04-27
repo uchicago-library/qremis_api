@@ -97,5 +97,65 @@ class AddEntitiesTests(unittest.TestCase):
         rv = self.app.get("/relationship_list")
         rj = self.response_200_json(rv)
 
+    def test_postObject(self):
+        pass
+
+    def test_postEvent(self):
+        pass
+
+    def test_postAgent(self):
+        pass
+
+    def test_postRights(self):
+        pass
+
+    def test_postRelationships(self):
+        pass
+
+    def test_getObject(self):
+        pass
+
+    def test_getEvent(self):
+        pass
+
+    def test_getAgent(self):
+        pass
+
+    def test_getRights(self):
+        pass
+
+    def test_getRelationships(self):
+        pass
+
+    def test_manuallyLink(self):
+        pass
+
+    def test_implicitLink(self):
+        pass
+
+    def test_getObjectLinkedRelationships(self):
+        pass
+
+    def test_getEventLinkedRelationships(self):
+        pass
+
+    def test_getAgentLinkedRelationships(self):
+        pass
+
+    def test_getRightsLinkedRelationships(self):
+        pass
+
+    def test_getRelationshipLinkedObjects(self):
+        pass
+
+    def test_getRelationshipLinkedEvents(self):
+        pass
+
+    def test_getRelationshipLinkedAgents(self):
+        pass
+
+    def test_getRelationshipLinkedRights(self):
+        pass
+
 if __name__ == '__main__':
     unittest.main()

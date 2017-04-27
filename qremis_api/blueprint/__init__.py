@@ -198,6 +198,15 @@ class Object(Resource):
         return rec.to_dict()
 
 
+class SparseObject(Resource):
+    def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
+        if not record_exists("object", id):
+            raise ValueError("No such object! ({})".format(id))
+        rec = pyqremis.Object.from_dict(loads(get_record(id)))
+        return rec.to_dict()
+
+
 class ObjectLinkedRelationships(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
@@ -285,6 +294,15 @@ class Event(Resource):
         return rec.to_dict()
 
 
+class SparseEvent(Resource):
+    def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
+        if not record_exists("event", id):
+            raise ValueError("No such event! ({})".format(id))
+        rec = pyqremis.Event.from_dict(loads(get_record(id)))
+        return rec.to_dict()
+
+
 class EventLinkedRelationships(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
@@ -369,24 +387,14 @@ class Agent(Resource):
             )
         return rec.to_dict()
 
-    def post(self):
-        log.debug("POST received @ {}".format(self.__class__.__name__))
-        parser = reqparse.RequestParser()
-        parser.add_argument("record", type=str, required=True)
-        args = parser.parse_args()
-        rec = pyqremis.Agent.from_dict(loads(args['record']))
-        agentId = None
-        for x in rec.get_agentIdentifier():
-            if x.get_agentIdentifierType() == "uuid":
-                agentId = x.get_agentIdentifierValue()
-        if agentId is None:
-            raise RuntimeError()
-        for x in rec.get_linkingRelationshipIdentifier():
-            if x.get_linkingRelationshipIdentifierType() == "uuid":
-                link_records("agent", agentId, "relationship", x.get_linkingRelationshipIdentifierValue())
-        rec.del_linkingRelationshipIdentifier()
-        add_record("agent", agentId, dumps(rec.to_dict()))
-        return API.url_for(Agent, id=agentId)
+
+class SparseAgent(Resource):
+    def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
+        if not record_exists("agent", id):
+            raise ValueError("No such agent! ({})".format(id))
+        rec = pyqremis.Agent.from_dict(loads(get_record(id)))
+        return rec.to_dict()
 
 
 class AgentLinkedRelationships(Resource):
@@ -471,6 +479,15 @@ class Rights(Resource):
                     linkingRelationshipIdentifierValue=x[0].decode("utf-8")
                 )
             )
+        return rec.to_dict()
+
+
+class SparseRights(Resource):
+    def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
+        if not record_exists("rights", id):
+            raise ValueError("No such rights! ({})".format(id))
+        rec = pyqremis.Rights.from_dict(loads(get_record(id)))
         return rec.to_dict()
 
 
@@ -612,6 +629,15 @@ class Relationship(Resource):
         return rec.to_dict()
 
 
+class SparseRelationship(Resource):
+    def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
+        if not record_exists("relationship", id):
+            raise ValueError("No such relationship! ({})".format(id))
+        rec = pyqremis.Relationship.from_dict(loads(get_record(id)))
+        return rec.to_dict()
+
+
 class RelationshipLinkedObjects(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
@@ -745,22 +771,27 @@ API.add_resource(Root, "/")
 
 API.add_resource(ObjectList, "/object_list")
 API.add_resource(Object, "/object_list/<string:id>")
+API.add_resource(SparseObject, "/object_list/<string:id>/sparse")
 API.add_resource(ObjectLinkedRelationships, "/object_list/<string:id>/linkedRelationships")
 
 API.add_resource(EventList, "/event_list")
 API.add_resource(Event, "/event_list/<string:id>")
+API.add_resource(SparseEvent, "/event_list/<string:id>/sparse")
 API.add_resource(EventLinkedRelationships, "/event_list/<string:id>/linkedRelationships")
 
 API.add_resource(AgentList, "/agent_list")
 API.add_resource(Agent, "/agent_list/<string:id>")
+API.add_resource(SparseAgent, "/agent_list/<string:id>/sparse")
 API.add_resource(AgentLinkedRelationships, "/agent_list/<string:id>/linkedRelationships")
 
 API.add_resource(RightsList, "/rights_list")
 API.add_resource(Rights, "/rights_list/<string:id>")
+API.add_resource(SparseRights, "/rights_list/<string:id>/sparse")
 API.add_resource(RightsLinkedRelationships, "/rights_list/<string:id>/linkedRelationships")
 
 API.add_resource(RelationshipList, "/relationship_list")
 API.add_resource(Relationship, "/relationship_list/<string:id>")
+API.add_resource(SparseRelationship, "/relationship_list/<string:id>/sparse")
 API.add_resource(RelationshipLinkedObjects, "/relationship_list/<string:id>/linkedObjects")
 API.add_resource(RelationshipLinkedEvents, "/relationship_list/<string:id>/linkedEvents")
 API.add_resource(RelationshipLinkedAgents, "/relationship_list/<string:id>/linkedAgents")
