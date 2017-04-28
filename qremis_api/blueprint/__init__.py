@@ -15,7 +15,6 @@ BLUEPRINT = Blueprint('qremis_api', __name__)
 BLUEPRINT.config = {
     'redis': None,
     'REDIS_HOST': None,
-    'REDIS_PORT': None,
     'REDIS_DB': None
 }
 
