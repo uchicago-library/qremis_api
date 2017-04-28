@@ -31,6 +31,9 @@ pagination_args_parser.add_argument('cursor', type=str, default="0")
 pagination_args_parser.add_argument('limit', type=int, default=1000)
 
 
+record_kinds = ["object", "event", "agent", "rights", "relationship"]
+
+
 def check_limit(limit):
     if limit > BLUEPRINT.config.get("MAX_LIMIT", 1000):
         log.warn(
@@ -41,17 +44,28 @@ def check_limit(limit):
 
 
 def record_exists(kind, id):
+    if kind not in record_kinds:
+        raise AssertionError()
     log.debug("Checking for record existence: {} ({})".format(kind, id))
     return BLUEPRINT.config['redis'].zscore(kind+"List", id) is not None
 
 
 def add_record(kind, id, rec):
+    if kind not in record_kinds:
+        raise AssertionError()
     log.debug("Adding {} record with id {}".format(kind, id))
     BLUEPRINT.config['redis'].setnx(id, rec)
     BLUEPRINT.config['redis'].zadd(kind+"List", 0, id)
 
 
 def link_records(kind1, id1, kind2, id2):
+    if kind1 not in record_kinds or kind2 not in record_kinds:
+        raise AssertionError()
+    if kind1 == "relationship" and kind2 != "relationship":
+        raise ValueError("It looks like you passed the argumnets in the wrong order, " +
+                         "link_records() takes the relationship as the second set (" +
+                         "args[2] and args[3]) of arguments in order to not produce " +
+                         "an additional relationship entity")
     log.debug("Attempting to link {}({}) to {}({})".format(kind1, id1, kind2, id2))
     kind3 = None
     id3 = None
@@ -72,7 +86,7 @@ def link_records(kind1, id1, kind2, id2):
             relationshipSubType="simple",
             relationshipNote="Automatically created to facilitate linking"
         )
-        add_record(kind2, id2, dumps(relationship_record.to_json()))
+        add_record(kind2, id2, dumps(relationship_record.to_dict()))
     # This puts kind of a lot of responsibility on the client to dissect the records
     # before POSTing them and working with linking aftwards
     # Eg, you can't just say "this is linked to a thing I'm going to add later"
@@ -99,6 +113,8 @@ def get_record(id):
 
 
 def record_is_kind(kind, id):
+    if kind not in record_kinds:
+        raise AssertionError()
     log.debug("Determining if record {} is {}".format(id, kind))
     for x in BLUEPRINT.config['redis'].zscan_iter(kind+"List"):
         if x[0].decode("utf-8") == id:
@@ -114,6 +130,8 @@ def get_kind_links(kind, id, cursor, limit):
     # see: https://github.com/andymccurdy/redis-py/blob/master/redis/client.py
     # Note also the uncertainty in the "count" kwarg: https://redis.io/commands/scan#the-count-option
     # Thus the > 0.
+    if kind not in record_kinds:
+        raise AssertionError()
     results = []
     if limit:
         while cursor != 0 and limit > 0:
@@ -130,6 +148,8 @@ def get_kind_links(kind, id, cursor, limit):
 
 
 def get_kind_list(kind, cursor, limit):
+    if kind not in record_kinds:
+        raise AssertionError()
     return BLUEPRINT.config['redis'].zscan(kind+"List", cursor, count=limit)
 
 
@@ -667,7 +687,7 @@ class RelationshipLinkedObjects(Resource):
         args = parser.parse_args()
         if not record_exists("relationship", id) or not record_exists("object", args['object_id']):
             raise ValueError("Non-existant identifier!")
-        link_records("relationship", id, "object", args['object_id'])
+        link_records("object", args['object_id'], "relationship", id)
         return id
 
 
@@ -695,7 +715,7 @@ class RelationshipLinkedEvents(Resource):
         args = parser.parse_args()
         if not record_exists("relationship", id) or not record_exists("event", args['event_id']):
             raise ValueError("Non-existant identifier!")
-        link_records("relationship", id, "event", args['event_id'])
+        link_records("event", args['event_id'], "relationship", id)
         return id
 
 
@@ -723,7 +743,7 @@ class RelationshipLinkedAgents(Resource):
         args = parser.parse_args()
         if not record_exists("relationship", id) or not record_exists("agent", args['agent_id']):
             raise ValueError("Non-existant identifier!")
-        link_records("relationship", id, "agent", args['agent_id'])
+        link_records("agent", args['agent_id'], "relationship", id)
         return id
 
 
@@ -751,7 +771,7 @@ class RelationshipLinkedRights(Resource):
         args = parser.parse_args()
         if not record_exists("relationship", id) or not record_exists("rights", args['rights_id']):
             raise ValueError("Non-existant identifier!")
-        link_records("relationship", id, "rights", args['rights_id'])
+        link_records("rights", args['rights_id'], "relationship", id)
         return id
 
 

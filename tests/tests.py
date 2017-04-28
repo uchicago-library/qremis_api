@@ -53,6 +53,7 @@ def add_linkingRelationshipIdentifier(entity, rel_id):
 
 class AddEntitiesTests(unittest.TestCase):
     def setUp(self):
+        self.maxDiff = None
         qremis_api.app.config['TESTING'] = True
         self.app = qremis_api.app.test_client()
         qremis_api.blueprint.BLUEPRINT.config['redis'] = redis.StrictRedis(
@@ -304,14 +305,384 @@ class AddEntitiesTests(unittest.TestCase):
         for x in comp_entities_ids:
             self.assertIn(x, entities_ids)
 
-    def test_manuallyLink(self):
+    def test_manuallyLinkObject(self):
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
+
+        obj = make_object()
+        obj_identifier = obj.get_objectIdentifier()[0].get_objectIdentifierValue()
+        obj_json = obj.to_dict()
+        oprv = self.app.post("/object_list", data={"record": json.dumps(obj_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/object_list/{}/linkedRelationships".format(obj_identifier),
+                              data={"relationship_id": relationship_id})
+        oprrj = self.response_200_json(oprrv)
+
+        obj.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        relationship.add_linkingObjectIdentifier(
+            LinkingObjectIdentifier(
+                linkingObjectIdentifierType="uuid",
+                linkingObjectIdentifierValue=obj_identifier
+            )
+        )
+
+        ogrv = self.app.get("/object_list/{}".format(obj_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, obj.to_dict())
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
+
+    def test_manuallyLinkEvent(self):
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
+
+        event = make_event()
+        event_identifier = event.get_eventIdentifier()[0].get_eventIdentifierValue()
+        event_json = event.to_dict()
+        oprv = self.app.post("/event_list", data={"record": json.dumps(event_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/event_list/{}/linkedRelationships".format(event_identifier),
+                              data={"relationship_id": relationship_id})
+        oprrj = self.response_200_json(oprrv)
+
+        event.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        relationship.add_linkingEventIdentifier(
+            LinkingEventIdentifier(
+                linkingEventIdentifierType="uuid",
+                linkingEventIdentifierValue=event_identifier
+            )
+        )
+
+        ogrv = self.app.get("/event_list/{}".format(event_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, event.to_dict())
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
+
+    def test_manuallyLinkAgent(self):
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
+
+        agent = make_agent()
+        agent_identifier = agent.get_agentIdentifier()[0].get_agentIdentifierValue()
+        agent_json = agent.to_dict()
+        oprv = self.app.post("/agent_list", data={"record": json.dumps(agent_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/agent_list/{}/linkedRelationships".format(agent_identifier),
+                              data={"relationship_id": relationship_id})
+        oprrj = self.response_200_json(oprrv)
+
+        agent.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        relationship.add_linkingAgentIdentifier(
+            LinkingAgentIdentifier(
+                linkingAgentIdentifierType="uuid",
+                linkingAgentIdentifierValue=agent_identifier
+            )
+        )
+
+        ogrv = self.app.get("/agent_list/{}".format(agent_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, agent.to_dict())
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
+
+    def test_manuallyLinkRights(self):
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
+
+        rights = make_rights()
+        rights_identifier = rights.get_rightsIdentifier()[0].get_rightsIdentifierValue()
+        rights_json = rights.to_dict()
+        oprv = self.app.post("/rights_list", data={"record": json.dumps(rights_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/rights_list/{}/linkedRelationships".format(rights_identifier),
+                              data={"relationship_id": relationship_id})
+        oprrj = self.response_200_json(oprrv)
+
+        rights.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        relationship.add_linkingRightsIdentifier(
+            LinkingRightsIdentifier(
+                linkingRightsIdentifierType="uuid",
+                linkingRightsIdentifierValue=rights_identifier
+            )
+        )
+
+        ogrv = self.app.get("/rights_list/{}".format(rights_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, rights.to_dict())
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
+
+    def test_manuallyLinkRelationshipToObject(self):
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
+
+        obj = make_object()
+        obj_identifier = obj.get_objectIdentifier()[0].get_objectIdentifierValue()
+        obj_json = obj.to_dict()
+        oprv = self.app.post("/object_list", data={"record": json.dumps(obj_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/relationship_list/{}/linkedObjects".format(relationship_id),
+                              data={"object_id": obj_identifier})
+        oprrj = self.response_200_json(oprrv)
+
+        obj.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        relationship.add_linkingObjectIdentifier(
+            LinkingObjectIdentifier(
+                linkingObjectIdentifierType="uuid",
+                linkingObjectIdentifierValue=obj_identifier
+            )
+        )
+
+        ogrv = self.app.get("/object_list/{}".format(obj_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, obj.to_dict())
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
+
+    def test_manuallyLinkRelationshipToEvent(self):
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
+
+        event = make_event()
+        event_identifier = event.get_eventIdentifier()[0].get_eventIdentifierValue()
+        event_json = event.to_dict()
+        oprv = self.app.post("/event_list", data={"record": json.dumps(event_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/relationship_list/{}/linkedEvents".format(relationship_id),
+                              data={"event_id": event_identifier})
+        oprrj = self.response_200_json(oprrv)
+
+        event.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        relationship.add_linkingEventIdentifier(
+            LinkingEventIdentifier(
+                linkingEventIdentifierType="uuid",
+                linkingEventIdentifierValue=event_identifier
+            )
+        )
+
+        ogrv = self.app.get("/event_list/{}".format(event_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, event.to_dict())
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
+
+    def test_manuallyLinkRelationshipToAgent(self):
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
+
+        agent = make_agent()
+        agent_identifier = agent.get_agentIdentifier()[0].get_agentIdentifierValue()
+        agent_json = agent.to_dict()
+        oprv = self.app.post("/agent_list", data={"record": json.dumps(agent_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/relationship_list/{}/linkedAgents".format(relationship_id),
+                              data={"agent_id": agent_identifier})
+        oprrj = self.response_200_json(oprrv)
+
+        agent.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        relationship.add_linkingAgentIdentifier(
+            LinkingAgentIdentifier(
+                linkingAgentIdentifierType="uuid",
+                linkingAgentIdentifierValue=agent_identifier
+            )
+        )
+
+        ogrv = self.app.get("/agent_list/{}".format(agent_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, agent.to_dict())
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
+
+    def test_manuallyLinkRelationshipToRights(self):
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
+
+        rights = make_rights()
+        rights_identifier = rights.get_rightsIdentifier()[0].get_rightsIdentifierValue()
+        rights_json = rights.to_dict()
+        oprv = self.app.post("/rights_list", data={"record": json.dumps(rights_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/relationship_list/{}/linkedRights".format(relationship_id),
+                              data={"rights_id": rights_identifier})
+        oprrj = self.response_200_json(oprrv)
+
+        rights.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        relationship.add_linkingRightsIdentifier(
+            LinkingRightsIdentifier(
+                linkingRightsIdentifierType="uuid",
+                linkingRightsIdentifierValue=rights_identifier
+            )
+        )
+
+        ogrv = self.app.get("/rights_list/{}".format(rights_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, rights.to_dict())
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
+
+    def test_implicitLinkObject(self):
+        target_object = make_object()
+        target_object_id = target_object.get_objectIdentifier()[0].get_objectIdentifierValue()
+
+        entity = make_object()
+        entity_id = entity.get_objectIdentifier()[0].get_objectIdentifierValue()
+
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        self.response_200_json(
+            self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
+        )
+        relationship.add_linkingObjectIdentifier(
+            LinkingObjectIdentifier(
+                linkingObjectIdentifierType="uuid",
+                linkingObjectIdentifierValue=target_object_id
+            )
+        )
+        relationship.add_linkingObjectIdentifier(
+            LinkingObjectIdentifier(
+                linkingObjectIdentifierType="uuid",
+                linkingObjectIdentifierValue=entity_id
+            )
+        )
+
+        self.response_200_json(
+            self.app.post("/object_list", data={"record": json.dumps(target_object.to_dict())})
+        )
+        self.response_200_json(
+            self.app.post("/object_list", data={"record": json.dumps(entity.to_dict())})
+        )
+        self.response_200_json(
+            self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
+        )
+
+        entity.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        target_object.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        self.assertEqual(
+            self.response_200_json(self.app.get("/object_list/{}".format(entity_id))),
+            entity.to_dict()
+        )
+        self.assertEqual(
+            self.response_200_json(self.app.get("/object_list/{}".format(target_object_id))),
+            target_object.to_dict()
+        )
+        self.assertTrue(
+            self.response_200_json(self.app.get("/relationship_list/{}".format(relationship_id))) == \
+            relationship.to_dict()
+        )
+
+    def test_implicitLinkEvent(self):
         pass
 
-    def test_implicitLink(self):
+    def test_implicitLinkAgent(self):
+        pass
+
+    def test_implicitLinkRights(self):
+        pass
+
+    def test_implicitLinkRelationshipToObject(self):
+        pass
+
+    def test_implicitLinkRelationshipToEvent(self):
+        pass
+
+    def test_implicitLinkRelationshipToAgent(self):
+        pass
+
+    def test_implicitLinkRelationshipToRights(self):
         pass
 
     def test_getObjectLinkedRelationships(self):
-        # TODO: Link stuff, check it exists
         entity = make_object()
         entity_json = entity.to_dict()
         eprv = self.app.post("/object_list", data={"record": json.dumps(entity_json)})
@@ -320,7 +691,6 @@ class AddEntitiesTests(unittest.TestCase):
         rj = self.response_200_json(rv)
 
     def test_getEventLinkedRelationships(self):
-        # TODO: Link stuff, check it exists
         entity = make_event()
         entity_json = entity.to_dict()
         eprv = self.app.post("/event_list", data={"record": json.dumps(entity_json)})
@@ -329,7 +699,6 @@ class AddEntitiesTests(unittest.TestCase):
         rj = self.response_200_json(rv)
 
     def test_getAgentLinkedRelationships(self):
-        # TODO: Link stuff, check it exists
         entity = make_agent()
         entity_json = entity.to_dict()
         eprv = self.app.post("/agent_list", data={"record": json.dumps(entity_json)})
@@ -338,7 +707,6 @@ class AddEntitiesTests(unittest.TestCase):
         rj = self.response_200_json(rv)
 
     def test_getRightsLinkedRelationships(self):
-        # TODO: Link stuff, check it exists
         entity = make_rights()
         entity_json = entity.to_dict()
         eprv = self.app.post("/rights_list", data={"record": json.dumps(entity_json)})
@@ -347,7 +715,6 @@ class AddEntitiesTests(unittest.TestCase):
         rj = self.response_200_json(rv)
 
     def test_getRelationshipLinkedObjects(self):
-        # TODO: Link stuff, check it exists
         entity = make_relationship()
         entity_json = entity.to_dict()
         eprv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
@@ -356,7 +723,6 @@ class AddEntitiesTests(unittest.TestCase):
         rj = self.response_200_json(rv)
 
     def test_getRelationshipLinkedEvents(self):
-        # TODO: Link stuff, check it exists
         entity = make_relationship()
         entity_json = entity.to_dict()
         eprv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
@@ -365,7 +731,6 @@ class AddEntitiesTests(unittest.TestCase):
         rj = self.response_200_json(rv)
 
     def test_getRelationshipLinkedAgents(self):
-        # TODO: Link stuff, check it exists
         entity = make_relationship()
         entity_json = entity.to_dict()
         eprv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
@@ -374,7 +739,6 @@ class AddEntitiesTests(unittest.TestCase):
         rj = self.response_200_json(rv)
 
     def test_getRelationshipLinkedRights(self):
-        # TODO: Link stuff, check it exists
         entity = make_relationship()
         entity_json = entity.to_dict()
         eprv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
@@ -383,19 +747,184 @@ class AddEntitiesTests(unittest.TestCase):
         rj = self.response_200_json(rv)
 
     def test_getSparseObject(self):
-        pass
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
+
+        obj = make_object()
+        obj_identifier = obj.get_objectIdentifier()[0].get_objectIdentifierValue()
+        obj_json = obj.to_dict()
+        oprv = self.app.post("/object_list", data={"record": json.dumps(obj_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/object_list/{}/linkedRelationships".format(obj_identifier),
+                              data={"relationship_id": relationship_id})
+        oprrj = self.response_200_json(oprrv)
+
+        sogrv = self.app.get("/object_list/{}/sparse".format(obj_identifier))
+        sogrj = self.response_200_json(sogrv)
+        self.assertEqual(sogrj, obj.to_dict())
+
+        srgrv = self.app.get("/relationship_list/{}/sparse".format(relationship_id))
+        srgrj = self.response_200_json(srgrv)
+        self.assertEqual(srgrj, relationship.to_dict())
+
+        obj.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        relationship.add_linkingObjectIdentifier(
+            LinkingObjectIdentifier(
+                linkingObjectIdentifierType="uuid",
+                linkingObjectIdentifierValue=obj_identifier
+            )
+        )
+
+        ogrv = self.app.get("/object_list/{}".format(obj_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, obj.to_dict())
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
 
     def test_getSparseEvent(self):
-        pass
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
+
+        event = make_event()
+        event_identifier = event.get_eventIdentifier()[0].get_eventIdentifierValue()
+        event_json = event.to_dict()
+        oprv = self.app.post("/event_list", data={"record": json.dumps(event_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/event_list/{}/linkedRelationships".format(event_identifier),
+                              data={"relationship_id": relationship_id})
+        oprrj = self.response_200_json(oprrv)
+
+        sogrv = self.app.get("/event_list/{}/sparse".format(event_identifier))
+        sogrj = self.response_200_json(sogrv)
+        self.assertEqual(sogrj, event.to_dict())
+
+        srgrv = self.app.get("/relationship_list/{}/sparse".format(relationship_id))
+        srgrj = self.response_200_json(srgrv)
+        self.assertEqual(srgrj, relationship.to_dict())
+
+        event.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        relationship.add_linkingEventIdentifier(
+            LinkingEventIdentifier(
+                linkingEventIdentifierType="uuid",
+                linkingEventIdentifierValue=event_identifier
+            )
+        )
+
+        ogrv = self.app.get("/event_list/{}".format(event_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, event.to_dict())
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
 
     def test_getSparseAgent(self):
-        pass
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
+
+        agent = make_agent()
+        agent_identifier = agent.get_agentIdentifier()[0].get_agentIdentifierValue()
+        agent_json = agent.to_dict()
+        oprv = self.app.post("/agent_list", data={"record": json.dumps(agent_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/agent_list/{}/linkedRelationships".format(agent_identifier),
+                              data={"relationship_id": relationship_id})
+        oprrj = self.response_200_json(oprrv)
+
+        sogrv = self.app.get("/agent_list/{}/sparse".format(agent_identifier))
+        sogrj = self.response_200_json(sogrv)
+        self.assertEqual(sogrj, agent.to_dict())
+
+        srgrv = self.app.get("/relationship_list/{}/sparse".format(relationship_id))
+        srgrj = self.response_200_json(srgrv)
+        self.assertEqual(srgrj, relationship.to_dict())
+
+        agent.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        relationship.add_linkingAgentIdentifier(
+            LinkingAgentIdentifier(
+                linkingAgentIdentifierType="uuid",
+                linkingAgentIdentifierValue=agent_identifier
+            )
+        )
+
+        ogrv = self.app.get("/agent_list/{}".format(agent_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, agent.to_dict())
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
 
     def test_getSparseRights(self):
-        pass
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
 
-    def test_getSparseRelationship(self):
-        pass
+        rights = make_rights()
+        rights_identifier = rights.get_rightsIdentifier()[0].get_rightsIdentifierValue()
+        rights_json = rights.to_dict()
+        oprv = self.app.post("/rights_list", data={"record": json.dumps(rights_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/rights_list/{}/linkedRelationships".format(rights_identifier),
+                              data={"relationship_id": relationship_id})
+        oprrj = self.response_200_json(oprrv)
+
+        sogrv = self.app.get("/rights_list/{}/sparse".format(rights_identifier))
+        sogrj = self.response_200_json(sogrv)
+        self.assertEqual(sogrj, rights.to_dict())
+
+        srgrv = self.app.get("/relationship_list/{}/sparse".format(relationship_id))
+        srgrj = self.response_200_json(srgrv)
+        self.assertEqual(srgrj, relationship.to_dict())
+
+        rights.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        relationship.add_linkingRightsIdentifier(
+            LinkingRightsIdentifier(
+                linkingRightsIdentifierType="uuid",
+                linkingRightsIdentifierValue=rights_identifier
+            )
+        )
+
+        ogrv = self.app.get("/rights_list/{}".format(rights_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, rights.to_dict())
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
 
 if __name__ == '__main__':
     unittest.main()
