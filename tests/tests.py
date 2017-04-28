@@ -1137,5 +1137,37 @@ class AddEntitiesTests(unittest.TestCase):
         rgrj = self.response_200_json(rgrv)
         self.assertEqual(rgrj, relationship.to_dict())
 
+    def test_linkedRelationshipsPagination(self):
+        event = make_event()
+        event_id = event.get_eventIdentifier()[0].get_eventIdentifierValue()
+        eprj = self.response_200_json(
+            self.app.post("/event_list", data={"record": json.dumps(event.to_dict())})
+        )
+        relationship_ids = []
+        for _ in range(1234):
+            relationship = make_relationship()
+            self.response_200_json(
+                self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
+            )
+            relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+            relationship_ids.append(relationship_id)
+            self.response_200_json(
+                self.app.post("/event_list/{}/linkedRelationships".format(event_id), data={"relationship_id": relationship_id})
+            )
+        cursor = "0"
+        comp_rel_ids = []
+        while cursor:
+            rj = self.response_200_json(
+                self.app.get("/event_list/{}/linkedRelationships".format(event_id), data={"cursor": cursor, "limit": 200})
+            )
+            cursor = rj['pagination']['next_cursor']
+            for x in rj['linkingRelationshipIdentifier_list']:
+                comp_rel_ids.append(x['id'])
+        self.assertEqual(len(comp_rel_ids), 1234)
+        self.assertEqual(len(comp_rel_ids), len(set(comp_rel_ids)))
+        for x in comp_rel_ids:
+            self.assertIn(x, relationship_ids)
+
+
 if __name__ == '__main__':
     unittest.main()

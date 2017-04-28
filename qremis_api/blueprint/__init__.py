@@ -350,7 +350,9 @@ class EventLinkedRelationships(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("event", id) or not record_exists("relationship", args['relationship_id']):
+        if not record_exists("event", id):
+            raise ValueError("Non-existant identifier!")
+        if not record_exists("relationship", args['relationship_id']):
             raise ValueError("Non-existant identifier!")
         link_records("event", id, "relationship", args['relationship_id'])
         return id
@@ -444,7 +446,9 @@ class AgentLinkedRelationships(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("agent", id) or not record_exists("relationship", args['relationship_id']):
+        if not record_exists("agent", id):
+            raise ValueError("Non-existant identifier!")
+        if not record_exists("relationship", args['relationship_id']):
             raise ValueError("Non-existant identifier!")
         link_records("agent", id, "relationship", args['relationship_id'])
         return id
@@ -538,7 +542,9 @@ class RightsLinkedRelationships(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("rights", id) or not record_exists("relationship", args['relationship_id']):
+        if not record_exists("rights", id):
+            raise ValueError("Non-existant identifier!")
+        if not record_exists("relationship", args['relationship_id']):
             raise ValueError("Non-existant identifier!")
         link_records("rights", id, "relationship", args['relationship_id'])
         return id
@@ -685,7 +691,9 @@ class RelationshipLinkedObjects(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("object_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("relationship", id) or not record_exists("object", args['object_id']):
+        if not record_exists("relationship", id):
+            raise ValueError("Non-existant identifier!")
+        if not record_exists("object", args['object_id']):
             raise ValueError("Non-existant identifier!")
         link_records("object", args['object_id'], "relationship", id)
         return id
@@ -713,7 +721,9 @@ class RelationshipLinkedEvents(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("event_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("relationship", id) or not record_exists("event", args['event_id']):
+        if not record_exists("relationship", id):
+            raise ValueError("Non-existant identifier!")
+        if not record_exists("event", args['event_id']):
             raise ValueError("Non-existant identifier!")
         link_records("event", args['event_id'], "relationship", id)
         return id
@@ -741,7 +751,9 @@ class RelationshipLinkedAgents(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("agent_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("relationship", id) or not record_exists("agent", args['agent_id']):
+        if not record_exists("relationship", id):
+            raise ValueError("Non-existant identifier!")
+        if not record_exists("agent", args['agent_id']):
             raise ValueError("Non-existant identifier!")
         link_records("agent", args['agent_id'], "relationship", id)
         return id
@@ -769,7 +781,9 @@ class RelationshipLinkedRights(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("rights_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("relationship", id) or not record_exists("rights", args['rights_id']):
+        if not record_exists("relationship", id):
+            raise ValueError("Non-existant identifier!")
+        if not record_exists("rights", args['rights_id']):
             raise ValueError("Non-existant identifier!")
         link_records("rights", args['rights_id'], "relationship", id)
         return id
