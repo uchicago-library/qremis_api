@@ -602,9 +602,6 @@ class AddEntitiesTests(unittest.TestCase):
         self.assertEqual(rgrj, relationship.to_dict())
 
     def test_implicitLinkObject(self):
-        target_object = make_object()
-        target_object_id = target_object.get_objectIdentifier()[0].get_objectIdentifierValue()
-
         entity = make_object()
         entity_id = entity.get_objectIdentifier()[0].get_objectIdentifierValue()
 
@@ -616,19 +613,10 @@ class AddEntitiesTests(unittest.TestCase):
         relationship.add_linkingObjectIdentifier(
             LinkingObjectIdentifier(
                 linkingObjectIdentifierType="uuid",
-                linkingObjectIdentifierValue=target_object_id
-            )
-        )
-        relationship.add_linkingObjectIdentifier(
-            LinkingObjectIdentifier(
-                linkingObjectIdentifierType="uuid",
                 linkingObjectIdentifierValue=entity_id
             )
         )
 
-        self.response_200_json(
-            self.app.post("/object_list", data={"record": json.dumps(target_object.to_dict())})
-        )
         self.response_200_json(
             self.app.post("/object_list", data={"record": json.dumps(entity.to_dict())})
         )
@@ -642,19 +630,9 @@ class AddEntitiesTests(unittest.TestCase):
                 linkingRelationshipIdentifierValue=relationship_id
             )
         )
-        target_object.add_linkingRelationshipIdentifier(
-            LinkingRelationshipIdentifier(
-                linkingRelationshipIdentifierType="uuid",
-                linkingRelationshipIdentifierValue=relationship_id
-            )
-        )
         self.assertEqual(
             self.response_200_json(self.app.get("/object_list/{}".format(entity_id))),
             entity.to_dict()
-        )
-        self.assertEqual(
-            self.response_200_json(self.app.get("/object_list/{}".format(target_object_id))),
-            target_object.to_dict()
         )
         self.assertTrue(
             self.response_200_json(self.app.get("/relationship_list/{}".format(relationship_id))) == \
@@ -662,25 +640,258 @@ class AddEntitiesTests(unittest.TestCase):
         )
 
     def test_implicitLinkEvent(self):
-        pass
+        entity = make_event()
+        entity_id = entity.get_eventIdentifier()[0].get_eventIdentifierValue()
+
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        self.response_200_json(
+            self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
+        )
+        relationship.add_linkingEventIdentifier(
+            LinkingEventIdentifier(
+                linkingEventIdentifierType="uuid",
+                linkingEventIdentifierValue=entity_id
+            )
+        )
+
+        self.response_200_json(
+            self.app.post("/event_list", data={"record": json.dumps(entity.to_dict())})
+        )
+        self.response_200_json(
+            self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
+        )
+
+        entity.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        self.assertEqual(
+            self.response_200_json(self.app.get("/event_list/{}".format(entity_id))),
+            entity.to_dict()
+        )
+        self.assertTrue(
+            self.response_200_json(self.app.get("/relationship_list/{}".format(relationship_id))) == \
+            relationship.to_dict()
+        )
 
     def test_implicitLinkAgent(self):
-        pass
+        entity = make_agent()
+        entity_id = entity.get_agentIdentifier()[0].get_agentIdentifierValue()
+
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        self.response_200_json(
+            self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
+        )
+        relationship.add_linkingAgentIdentifier(
+            LinkingAgentIdentifier(
+                linkingAgentIdentifierType="uuid",
+                linkingAgentIdentifierValue=entity_id
+            )
+        )
+
+        self.response_200_json(
+            self.app.post("/agent_list", data={"record": json.dumps(entity.to_dict())})
+        )
+        self.response_200_json(
+            self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
+        )
+
+        entity.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        self.assertEqual(
+            self.response_200_json(self.app.get("/agent_list/{}".format(entity_id))),
+            entity.to_dict()
+        )
+        self.assertTrue(
+            self.response_200_json(self.app.get("/relationship_list/{}".format(relationship_id))) == \
+            relationship.to_dict()
+        )
 
     def test_implicitLinkRights(self):
-        pass
+        entity = make_rights()
+        entity_id = entity.get_rightsIdentifier()[0].get_rightsIdentifierValue()
+
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        self.response_200_json(
+            self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
+        )
+        relationship.add_linkingRightsIdentifier(
+            LinkingRightsIdentifier(
+                linkingRightsIdentifierType="uuid",
+                linkingRightsIdentifierValue=entity_id
+            )
+        )
+
+        self.response_200_json(
+            self.app.post("/rights_list", data={"record": json.dumps(entity.to_dict())})
+        )
+        self.response_200_json(
+            self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
+        )
+
+        entity.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=relationship_id
+            )
+        )
+        self.assertEqual(
+            self.response_200_json(self.app.get("/rights_list/{}".format(entity_id))),
+            entity.to_dict()
+        )
+        self.assertTrue(
+            self.response_200_json(self.app.get("/relationship_list/{}".format(relationship_id))) == \
+            relationship.to_dict()
+        )
 
     def test_implicitLinkRelationshipToObject(self):
-        pass
+        target_relationship = make_relationship()
+        target_relationship_id = target_relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+
+        obj = make_object()
+        obj_identifier = obj.get_objectIdentifier()[0].get_objectIdentifierValue()
+
+        self.response_200_json(
+            self.app.post("/relationship_list", data={"record": json.dumps(target_relationship.to_dict())})
+        )
+
+        obj.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=target_relationship_id
+            )
+        )
+        self.response_200_json(
+            self.app.post("/object_list", data={"record": json.dumps(obj.to_dict())})
+        )
+
+        target_relationship.add_linkingObjectIdentifier(
+            LinkingObjectIdentifier(
+                linkingObjectIdentifierType="uuid",
+                linkingObjectIdentifierValue=obj_identifier
+            )
+        )
+
+        self.assertEqual(
+            self.response_200_json(
+                self.app.get("/relationship_list/{}".format(target_relationship_id))
+            ),
+            target_relationship.to_dict()
+        )
 
     def test_implicitLinkRelationshipToEvent(self):
-        pass
+        target_relationship = make_relationship()
+        target_relationship_id = target_relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+
+        event = make_event()
+        event_identifier = event.get_eventIdentifier()[0].get_eventIdentifierValue()
+
+        self.response_200_json(
+            self.app.post("/relationship_list", data={"record": json.dumps(target_relationship.to_dict())})
+        )
+
+        event.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=target_relationship_id
+            )
+        )
+        self.response_200_json(
+            self.app.post("/event_list", data={"record": json.dumps(event.to_dict())})
+        )
+
+        target_relationship.add_linkingEventIdentifier(
+            LinkingEventIdentifier(
+                linkingEventIdentifierType="uuid",
+                linkingEventIdentifierValue=event_identifier
+            )
+        )
+
+        self.assertEqual(
+            self.response_200_json(
+                self.app.get("/relationship_list/{}".format(target_relationship_id))
+            ),
+            target_relationship.to_dict()
+        )
 
     def test_implicitLinkRelationshipToAgent(self):
-        pass
+        target_relationship = make_relationship()
+        target_relationship_id = target_relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+
+        agent = make_agent()
+        agent_identifier = agent.get_agentIdentifier()[0].get_agentIdentifierValue()
+
+        self.response_200_json(
+            self.app.post("/relationship_list", data={"record": json.dumps(target_relationship.to_dict())})
+        )
+
+        agent.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=target_relationship_id
+            )
+        )
+        self.response_200_json(
+            self.app.post("/agent_list", data={"record": json.dumps(agent.to_dict())})
+        )
+
+        target_relationship.add_linkingAgentIdentifier(
+            LinkingAgentIdentifier(
+                linkingAgentIdentifierType="uuid",
+                linkingAgentIdentifierValue=agent_identifier
+            )
+        )
+
+        self.assertEqual(
+            self.response_200_json(
+                self.app.get("/relationship_list/{}".format(target_relationship_id))
+            ),
+            target_relationship.to_dict()
+        )
 
     def test_implicitLinkRelationshipToRights(self):
-        pass
+        target_relationship = make_relationship()
+        target_relationship_id = target_relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+
+        rights = make_rights()
+        rights_identifier = rights.get_rightsIdentifier()[0].get_rightsIdentifierValue()
+
+        self.response_200_json(
+            self.app.post("/relationship_list", data={"record": json.dumps(target_relationship.to_dict())})
+        )
+
+        rights.add_linkingRelationshipIdentifier(
+            LinkingRelationshipIdentifier(
+                linkingRelationshipIdentifierType="uuid",
+                linkingRelationshipIdentifierValue=target_relationship_id
+            )
+        )
+        self.response_200_json(
+            self.app.post("/rights_list", data={"record": json.dumps(rights.to_dict())})
+        )
+
+        target_relationship.add_linkingRightsIdentifier(
+            LinkingRightsIdentifier(
+                linkingRightsIdentifierType="uuid",
+                linkingRightsIdentifierValue=rights_identifier
+            )
+        )
+
+        self.assertEqual(
+            self.response_200_json(
+                self.app.get("/relationship_list/{}".format(target_relationship_id))
+            ),
+            target_relationship.to_dict()
+        )
 
     def test_getObjectLinkedRelationships(self):
         entity = make_object()
