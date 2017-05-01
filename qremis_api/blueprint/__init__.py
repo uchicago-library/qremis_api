@@ -2,7 +2,7 @@ import logging
 from uuid import uuid4
 from json import dumps, loads
 
-from flask import Blueprint
+from flask import Blueprint, abort
 from flask_restful import Resource, Api, reqparse
 import redis
 
@@ -12,7 +12,11 @@ import pyqremis
 BLUEPRINT = Blueprint('qremis_api', __name__)
 
 
-BLUEPRINT.config = {}
+BLUEPRINT.config = {
+    'redis': None,
+    'REDIS_HOST': None,
+    'REDIS_DB': None
+}
 
 
 API = Api(BLUEPRINT)
@@ -26,6 +30,9 @@ pagination_args_parser.add_argument('cursor', type=str, default="0")
 pagination_args_parser.add_argument('limit', type=int, default=1000)
 
 
+record_kinds = ["object", "event", "agent", "rights", "relationship"]
+
+
 def check_limit(limit):
     if limit > BLUEPRINT.config.get("MAX_LIMIT", 1000):
         log.warn(
@@ -36,17 +43,28 @@ def check_limit(limit):
 
 
 def record_exists(kind, id):
+    if kind not in record_kinds:
+        raise AssertionError()
     log.debug("Checking for record existence: {} ({})".format(kind, id))
     return BLUEPRINT.config['redis'].zscore(kind+"List", id) is not None
 
 
 def add_record(kind, id, rec):
+    if kind not in record_kinds:
+        raise AssertionError()
     log.debug("Adding {} record with id {}".format(kind, id))
     BLUEPRINT.config['redis'].setnx(id, rec)
     BLUEPRINT.config['redis'].zadd(kind+"List", 0, id)
 
 
 def link_records(kind1, id1, kind2, id2):
+    if kind1 not in record_kinds or kind2 not in record_kinds:
+        raise AssertionError()
+    if kind1 == "relationship" and kind2 != "relationship":
+        raise ValueError("It looks like you passed the argumnets in the wrong order, " +
+                         "link_records() takes the relationship as the second set (" +
+                         "args[2] and args[3]) of arguments in order to not produce " +
+                         "an additional relationship entity")
     log.debug("Attempting to link {}({}) to {}({})".format(kind1, id1, kind2, id2))
     kind3 = None
     id3 = None
@@ -67,7 +85,7 @@ def link_records(kind1, id1, kind2, id2):
             relationshipSubType="simple",
             relationshipNote="Automatically created to facilitate linking"
         )
-        add_record(kind2, id2, dumps(relationship_record.to_json()))
+        add_record(kind2, id2, dumps(relationship_record.to_dict()))
     # This puts kind of a lot of responsibility on the client to dissect the records
     # before POSTing them and working with linking aftwards
     # Eg, you can't just say "this is linked to a thing I'm going to add later"
@@ -94,6 +112,8 @@ def get_record(id):
 
 
 def record_is_kind(kind, id):
+    if kind not in record_kinds:
+        raise AssertionError()
     log.debug("Determining if record {} is {}".format(id, kind))
     for x in BLUEPRINT.config['redis'].zscan_iter(kind+"List"):
         if x[0].decode("utf-8") == id:
@@ -107,17 +127,28 @@ def get_kind_links(kind, id, cursor, limit):
     # This is kind of like a non-generator version of zscan_iter, bounded
     # at the given limit (if a limit is set)
     # see: https://github.com/andymccurdy/redis-py/blob/master/redis/client.py
+    # Note also the uncertainty in the "count" kwarg: https://redis.io/commands/scan#the-count-option
+    # Thus the > 0.
+    if kind not in record_kinds:
+        raise AssertionError()
     results = []
-    while cursor != 0 and limit != 0:
-        cursor, data = BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor=cursor, count=limit)
-        if limit:
+    if limit:
+        while cursor != 0 and limit > 0:
+            cursor, data = BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor=cursor, count=limit)
             limit = limit - len(data)
-        for item in data:
-            results.append(item)
+            for item in data:
+                results.append(item)
+    else:
+        while cursor != 0:
+            cursor, data = BLUEPRINT.config['redis'].zscan(id+"_"+kind+"Links", cursor=cursor, count=limit)
+            for item in data:
+                results.append(item)
     return cursor, results
 
 
 def get_kind_list(kind, cursor, limit):
+    if kind not in record_kinds:
+        raise AssertionError()
     return BLUEPRINT.config['redis'].zscan(kind+"List", cursor, count=limit)
 
 
@@ -140,9 +171,10 @@ class ObjectList(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_list("object", args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['object_list'] = [{'id': x[0].decode('utf-8'),
                              '_link': API.url_for(Object, id=x[0].decode('utf-8'))}
                             for x in q[1]]
@@ -178,7 +210,7 @@ class Object(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("object", id):
-            raise ValueError("No such object! ({})".format(id))
+            abort(404)
         rec = pyqremis.Object.from_dict(loads(get_record(id)))
         for x in get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
@@ -190,6 +222,15 @@ class Object(Resource):
         return rec.to_dict()
 
 
+class SparseObject(Resource):
+    def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
+        if not record_exists("object", id):
+            abort(404)
+        rec = pyqremis.Object.from_dict(loads(get_record(id)))
+        return rec.to_dict()
+
+
 class ObjectLinkedRelationships(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
@@ -197,9 +238,10 @@ class ObjectLinkedRelationships(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("relationship", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRelationshipIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link':  API.url_for(Relationship, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -226,9 +268,10 @@ class EventList(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_list("event", args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['event_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Event, id=x[0].decode('utf-8'))}
                            for x in q[1]]
         return r
@@ -263,7 +306,7 @@ class Event(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("event", id):
-            raise ValueError("No such event! ({})".format(id))
+            abort(404)
         rec = pyqremis.Event.from_dict(loads(get_record(id)))
         for x in get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
@@ -275,6 +318,15 @@ class Event(Resource):
         return rec.to_dict()
 
 
+class SparseEvent(Resource):
+    def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
+        if not record_exists("event", id):
+            abort(404)
+        rec = pyqremis.Event.from_dict(loads(get_record(id)))
+        return rec.to_dict()
+
+
 class EventLinkedRelationships(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
@@ -282,9 +334,10 @@ class EventLinkedRelationships(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("relationship", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRelationshipIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Relationship, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -296,8 +349,10 @@ class EventLinkedRelationships(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("event", id) or not record_exists("relationship", args['relationship_id']):
-            raise ValueError("Non-existant identifier!")
+        if not record_exists("event", id):
+            raise ValueError("Non-existent identifier!")
+        if not record_exists("relationship", args['relationship_id']):
+            raise ValueError("Non-existent identifier!")
         link_records("event", id, "relationship", args['relationship_id'])
         return id
 
@@ -309,9 +364,10 @@ class AgentList(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_list("agent", args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['agent_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Agent, id=x[0].decode('utf-8'))}
                            for x in q[1]]
         return r
@@ -346,7 +402,7 @@ class Agent(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("agent", id):
-            raise ValueError("No such agent! ({})".format(id))
+            abort(404)
         rec = pyqremis.Agent.from_dict(loads(get_record(id)))
         for x in get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
@@ -357,24 +413,14 @@ class Agent(Resource):
             )
         return rec.to_dict()
 
-    def post(self):
-        log.debug("POST received @ {}".format(self.__class__.__name__))
-        parser = reqparse.RequestParser()
-        parser.add_argument("record", type=str, required=True)
-        args = parser.parse_args()
-        rec = pyqremis.Agent.from_dict(loads(args['record']))
-        agentId = None
-        for x in rec.get_agentIdentifier():
-            if x.get_agentIdentifierType() == "uuid":
-                agentId = x.get_agentIdentifierValue()
-        if agentId is None:
-            raise RuntimeError()
-        for x in rec.get_linkingRelationshipIdentifier():
-            if x.get_linkingRelationshipIdentifierType() == "uuid":
-                link_records("agent", agentId, "relationship", x.get_linkingRelationshipIdentifierValue())
-        rec.del_linkingRelationshipIdentifier()
-        add_record("agent", agentId, dumps(rec.to_dict()))
-        return API.url_for(Agent, id=agentId)
+
+class SparseAgent(Resource):
+    def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
+        if not record_exists("agent", id):
+            abort(404)
+        rec = pyqremis.Agent.from_dict(loads(get_record(id)))
+        return rec.to_dict()
 
 
 class AgentLinkedRelationships(Resource):
@@ -384,9 +430,10 @@ class AgentLinkedRelationships(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("relationship", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRelationshipIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Relationship, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -398,8 +445,10 @@ class AgentLinkedRelationships(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("agent", id) or not record_exists("relationship", args['relationship_id']):
-            raise ValueError("Non-existant identifier!")
+        if not record_exists("agent", id):
+            raise ValueError("Non-existent identifier!")
+        if not record_exists("relationship", args['relationship_id']):
+            raise ValueError("Non-existent identifier!")
         link_records("agent", id, "relationship", args['relationship_id'])
         return id
 
@@ -411,9 +460,10 @@ class RightsList(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_list("rights", args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['rights_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Rights, id=x[0].decode('utf-8'))}
                             for x in q[1]]
         return r
@@ -448,7 +498,7 @@ class Rights(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("rights", id):
-            raise ValueError("No such rights! ({})".format(id))
+            abort(404)
         rec = pyqremis.Rights.from_dict(loads(get_record(id)))
         for x in get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
@@ -460,6 +510,15 @@ class Rights(Resource):
         return rec.to_dict()
 
 
+class SparseRights(Resource):
+    def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
+        if not record_exists("rights", id):
+            abort(404)
+        rec = pyqremis.Rights.from_dict(loads(get_record(id)))
+        return rec.to_dict()
+
+
 class RightsLinkedRelationships(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
@@ -467,9 +526,10 @@ class RightsLinkedRelationships(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("relationship", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRelationshipIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Relationship, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -481,8 +541,10 @@ class RightsLinkedRelationships(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("rights", id) or not record_exists("relationship", args['relationship_id']):
-            raise ValueError("Non-existant identifier!")
+        if not record_exists("rights", id):
+            raise ValueError("Non-existent identifier!")
+        if not record_exists("relationship", args['relationship_id']):
+            raise ValueError("Non-existent identifier!")
         link_records("rights", id, "relationship", args['relationship_id'])
         return id
 
@@ -494,9 +556,10 @@ class RelationshipList(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_list("relationship", args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['relationship_list'] = [
             {'id': x[0].decode('utf-8'), '_link': API.url_for(Relationship, id=x[0].decode('utf-8'))}
             for x in q[1]
@@ -559,7 +622,7 @@ class Relationship(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
         if not record_exists("relationship", id):
-            raise ValueError("No such relationship! ({})".format(id))
+            abort(404)
         rec = pyqremis.Relationship.from_dict(loads(get_record(id)))
 
         for x in get_kind_links("object", id, "0", None)[1]:
@@ -596,6 +659,15 @@ class Relationship(Resource):
         return rec.to_dict()
 
 
+class SparseRelationship(Resource):
+    def get(self, id):
+        log.debug("GET received @ {}".format(self.__class__.__name__))
+        if not record_exists("relationship", id):
+            abort(404)
+        rec = pyqremis.Relationship.from_dict(loads(get_record(id)))
+        return rec.to_dict()
+
+
 class RelationshipLinkedObjects(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
@@ -603,9 +675,10 @@ class RelationshipLinkedObjects(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("object", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingObjectIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Object, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -617,9 +690,11 @@ class RelationshipLinkedObjects(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("object_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("relationship", id) or not record_exists("object", args['object_id']):
-            raise ValueError("Non-existant identifier!")
-        link_records("relationship", id, "object", args['object_id'])
+        if not record_exists("relationship", id):
+            raise ValueError("Non-existent identifier!")
+        if not record_exists("object", args['object_id']):
+            raise ValueError("Non-existent identifier!")
+        link_records("object", args['object_id'], "relationship", id)
         return id
 
 
@@ -630,9 +705,10 @@ class RelationshipLinkedEvents(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("event", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingEventIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Event, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -644,9 +720,11 @@ class RelationshipLinkedEvents(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("event_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("relationship", id) or not record_exists("event", args['event_id']):
-            raise ValueError("Non-existant identifier!")
-        link_records("relationship", id, "event", args['event_id'])
+        if not record_exists("relationship", id):
+            raise ValueError("Non-existent identifier!")
+        if not record_exists("event", args['event_id']):
+            raise ValueError("Non-existent identifier!")
+        link_records("event", args['event_id'], "relationship", id)
         return id
 
 
@@ -657,9 +735,10 @@ class RelationshipLinkedAgents(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("agent", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingAgentIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Agent, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -671,9 +750,11 @@ class RelationshipLinkedAgents(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("agent_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("relationship", id) or not record_exists("agent", args['agent_id']):
-            raise ValueError("Non-existant identifier!")
-        link_records("relationship", id, "agent", args['agent_id'])
+        if not record_exists("relationship", id):
+            raise ValueError("Non-existent identifier!")
+        if not record_exists("agent", args['agent_id']):
+            raise ValueError("Non-existent identifier!")
+        link_records("agent", args['agent_id'], "relationship", id)
         return id
 
 
@@ -684,9 +765,10 @@ class RelationshipLinkedRights(Resource):
         args = parser.parse_args()
         r = {}
         q = get_kind_links("rights", id, args['cursor'], check_limit(args['limit']))
-        r['starting_cursor'] = args['cursor']
-        r['next_cursor'] = q[0] if q[0] != 0 else None
-        r['limit'] = check_limit(args['limit'])
+        r['pagination'] = {}
+        r['pagination']['starting_cursor'] = args['cursor']
+        r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
+        r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRightsIdentifier_list'] = [
             {'id': x[0].decode("utf-8"), '_link': API.url_for(Rights, id=x[0].decode("utf-8"))}
             for x in q[1]
@@ -698,9 +780,11 @@ class RelationshipLinkedRights(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("rights_id", type=str, required=True)
         args = parser.parse_args()
-        if not record_exists("relationship", id) or not record_exists("rights", args['rights_id']):
-            raise ValueError("Non-existant identifier!")
-        link_records("relationship", id, "rights", args['rights_id'])
+        if not record_exists("relationship", id):
+            raise ValueError("Non-existent identifier!")
+        if not record_exists("rights", args['rights_id']):
+            raise ValueError("Non-existent identifier!")
+        link_records("rights", args['rights_id'], "relationship", id)
         return id
 
 
@@ -725,22 +809,27 @@ API.add_resource(Root, "/")
 
 API.add_resource(ObjectList, "/object_list")
 API.add_resource(Object, "/object_list/<string:id>")
+API.add_resource(SparseObject, "/object_list/<string:id>/sparse")
 API.add_resource(ObjectLinkedRelationships, "/object_list/<string:id>/linkedRelationships")
 
 API.add_resource(EventList, "/event_list")
 API.add_resource(Event, "/event_list/<string:id>")
+API.add_resource(SparseEvent, "/event_list/<string:id>/sparse")
 API.add_resource(EventLinkedRelationships, "/event_list/<string:id>/linkedRelationships")
 
 API.add_resource(AgentList, "/agent_list")
 API.add_resource(Agent, "/agent_list/<string:id>")
+API.add_resource(SparseAgent, "/agent_list/<string:id>/sparse")
 API.add_resource(AgentLinkedRelationships, "/agent_list/<string:id>/linkedRelationships")
 
 API.add_resource(RightsList, "/rights_list")
 API.add_resource(Rights, "/rights_list/<string:id>")
+API.add_resource(SparseRights, "/rights_list/<string:id>/sparse")
 API.add_resource(RightsLinkedRelationships, "/rights_list/<string:id>/linkedRelationships")
 
 API.add_resource(RelationshipList, "/relationship_list")
 API.add_resource(Relationship, "/relationship_list/<string:id>")
+API.add_resource(SparseRelationship, "/relationship_list/<string:id>/sparse")
 API.add_resource(RelationshipLinkedObjects, "/relationship_list/<string:id>/linkedObjects")
 API.add_resource(RelationshipLinkedEvents, "/relationship_list/<string:id>/linkedEvents")
 API.add_resource(RelationshipLinkedAgents, "/relationship_list/<string:id>/linkedAgents")
