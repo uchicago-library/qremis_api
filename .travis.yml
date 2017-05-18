@@ -3,7 +3,7 @@ python:
     - "3.5"
 before_script:
     - pip install coverage && pip install python-coveralls
-install: "pip install . && pip install git+git://github.com/bnbalsamo/pyqremis.git"
+install: "pip install git+git://github.com/bnbalsamo/pyqremis.git && pip install ."
 services:
     - redis
 script: coverage run --source qremis_api tests.py
