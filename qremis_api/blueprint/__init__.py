@@ -922,7 +922,7 @@ def handle_configs(setup_state):
             )
         )
     else:
-        BLUEPRINT.config['storage'] = storage_backends[BLUEPRINT.config['storage']](BLUEPRINT)
+        BLUEPRINT.config['storage'] = storage_backends[BLUEPRINT.config['STORAGE_BACKEND']](BLUEPRINT)
 
     if BLUEPRINT.config.get("VERBOSITY"):
         logging.basicConfig(level=BLUEPRINT.config['VERBOSITY'])
