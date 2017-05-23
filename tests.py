@@ -1,7 +1,6 @@
 from uuid import uuid4
 import datetime
 import unittest
-import redis
 import json
 
 import qremis_api
@@ -599,9 +598,6 @@ class TestsMixin:
 
         relationship = make_relationship()
         relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
-        self.response_200_json(
-            self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
-        )
         relationship.add_linkingObjectIdentifier(
             LinkingObjectIdentifier(
                 linkingObjectIdentifierType="uuid",
@@ -637,9 +633,6 @@ class TestsMixin:
 
         relationship = make_relationship()
         relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
-        self.response_200_json(
-            self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
-        )
         relationship.add_linkingEventIdentifier(
             LinkingEventIdentifier(
                 linkingEventIdentifierType="uuid",
@@ -675,9 +668,6 @@ class TestsMixin:
 
         relationship = make_relationship()
         relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
-        self.response_200_json(
-            self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
-        )
         relationship.add_linkingAgentIdentifier(
             LinkingAgentIdentifier(
                 linkingAgentIdentifierType="uuid",
@@ -713,9 +703,6 @@ class TestsMixin:
 
         relationship = make_relationship()
         relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
-        self.response_200_json(
-            self.app.post("/relationship_list", data={"record": json.dumps(relationship.to_dict())})
-        )
         relationship.add_linkingRightsIdentifier(
             LinkingRightsIdentifier(
                 linkingRightsIdentifierType="uuid",
@@ -1174,6 +1161,18 @@ class RedisTests(TestsMixin, unittest.TestCase):
     def tearDown(self):
         qremis_api.blueprint.BLUEPRINT.config['storage'].redis.flushdb()
 
+
+class MongoTests(TestsMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        qremis_api.blueprint.BLUEPRINT.config['MONGO_HOST'] = "localhost"
+        qremis_api.blueprint.BLUEPRINT.config['MONGO_PORT'] = 27017
+        qremis_api.blueprint.BLUEPRINT.config['MONGO_DBNAME'] = "testing"
+        qremis_api.blueprint.BLUEPRINT.config['storage'] = \
+            qremis_api.blueprint.MongoStorageBackend(qremis_api.blueprint.BLUEPRINT)
+
+    def tearDown(self):
+        qremis_api.blueprint.BLUEPRINT.config['storage'].client.drop_database("testing")
 
 if __name__ == '__main__':
     unittest.main()

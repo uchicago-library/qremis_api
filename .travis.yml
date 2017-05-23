@@ -6,6 +6,7 @@ before_script:
 install: "pip install git+git://github.com/bnbalsamo/pyqremis.git && pip install ."
 services:
     - redis
+    - mongodb
 script: coverage run --source qremis_api tests.py
 after_success:
     - coveralls

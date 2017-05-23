@@ -6,6 +6,7 @@ from abc import ABCMeta, abstractmethod
 from flask import Blueprint, abort
 from flask_restful import Resource, Api, reqparse
 import redis
+from pymongo import MongoClient, ASCENDING
 
 import pyqremis
 
@@ -43,10 +44,6 @@ class StorageBackend(metaclass=ABCMeta):
 
     @abstractmethod
     def get_record(self, id):
-        pass
-
-    @abstractmethod
-    def record_is_kind(self, kind, id):
         pass
 
     @abstractmethod
@@ -131,17 +128,6 @@ class RedisStorageBackend(StorageBackend):
         except:
             raise ValueError("Element {} doesn't exist!".format(id))
 
-    def record_is_kind(self, kind, id):
-        if kind not in record_kinds:
-            raise AssertionError()
-        log.debug("Determining if record {} is {}".format(id, kind))
-        for x in self.redis.zscan_iter(kind+"List"):
-            if x[0].decode("utf-8") == id:
-                log.debug("Record {} is a(n) {}".format(id, kind))
-                return True
-        log.debug("Record {} is not a(n) {}".format(id, kind))
-        return False
-
     def get_kind_links(self, kind, id, cursor, limit):
         # This is kind of like a non-generator version of zscan_iter, bounded
         # at the given limit (if a limit is set)
@@ -162,12 +148,106 @@ class RedisStorageBackend(StorageBackend):
                 cursor, data = self.redis.zscan(id+"_"+kind+"Links", cursor=cursor, count=limit)
                 for item in data:
                     results.append(item)
-        return cursor, results
+        return cursor, [x[0].decode("utf-8") for x in results]
 
     def get_kind_list(self, kind, cursor, limit):
         if kind not in record_kinds:
             raise AssertionError()
-        return self.redis.zscan(kind+"List", cursor, count=limit)
+        results = []
+        if limit:
+            while cursor != 0 and limit > 0:
+                cursor, data = self.redis.zscan(kind+"List", cursor=cursor, count=limit)
+                limit = limit - len(data)
+                for item in data:
+                    results.append(item)
+        else:
+            while cursor != 0:
+                cursor, data = self.redis.zscan(kind+"List", cursor=cursor, count=limit)
+                for item in data:
+                    results.append(item)
+        return cursor, [x[0].decode("utf-8") for x in results]
+
+
+class MongoStorageBackend(StorageBackend):
+    def __init__(self, bp):
+        self.client = MongoClient(bp.config['MONGO_HOST'], bp.config['MONGO_PORT'])
+        self.db = self.client[bp.config['MONGO_DBNAME']]
+
+    def record_exists(self, kind, id):
+        return bool(self.db['records'].find_one({'_id': id}))
+
+    def add_record(self, kind, id, rec):
+        self.db['records'].insert_one({'_id': id, 'rec': rec})
+        self.db[kind+'List'].insert_one({'_id': id})
+
+    def link_records(self, kind1, id1, kind2, id2):
+        if kind1 not in record_kinds or kind2 not in record_kinds:
+            raise AssertionError()
+        if kind1 == "relationship" and kind2 != "relationship":
+            raise ValueError("It looks like you passed the argumnets in the wrong order, " +
+                             "link_records() takes the relationship as the second set (" +
+                             "args[2] and args[3]) of arguments in order to not produce " +
+                             "an additional relationship entity")
+        log.debug("Attempting to link {}({}) to {}({})".format(kind1, id1, kind2, id2))
+        kind3 = None
+        id3 = None
+        if kind2 != "relationship":
+            log.debug("target record is not a relationship - creating a simple " +
+                      "linking relationship")
+            kind3 = kind2
+            id3 = id2
+            kind2 = "relationship"
+            id2 = uuid4().hex
+            log.debug("Minting simple linking relationship ({})".format(id2))
+            relationship_record = pyqremis.Relationship(
+                pyqremis.RelationshipIdentifier(
+                    relationshipIdentifierType='uuid',
+                    relationshipIdentifierValue=uuid4().hex
+                ),
+                relationshipType="link",
+                relationshipSubType="simple",
+                relationshipNote="Automatically created to facilitate linking"
+            )
+            self.add_record(kind2, id2, dumps(relationship_record.to_dict()))
+        self.db[id1+'Linked'+kind2].insert_one({'_id': id2})
+        self.db[id2+'Linked'+kind1].insert_one({'_id': id1})
+        if kind3 is not None and id3 is not None:
+            self.db[id2+'Linked'+kind3].insert_one({'_id': id3})
+            self.db[id3+'Linked'+kind2].insert_one({'_id': id2})
+
+    def get_record(self, id):
+        try:
+            return self.db['records'].find_one({'_id': id})['rec']
+        except Exception as e:
+            print(str(e))
+            raise e
+
+    def get_kind_links(self, kind, id, cursor, limit):
+        def peek(cursor, limit):
+            if len([x['_id'] for x in self.db[id+'Linked'+kind].find().sort('_id', ASCENDING).skip(cursor+limit)]) > 0:
+                return str(cursor+limit)
+            return None
+        cursor = int(cursor)
+        if limit is not None:
+            results = [x['_id'] for x in self.db[id+'Linked'+kind].find().sort('_id', ASCENDING).skip(cursor).limit(limit)]
+        else:
+            results = [x['_id'] for x in self.db[id+'Linked'+kind].find().sort('_id', ASCENDING).skip(cursor)]
+        if limit:
+            next_cursor = peek(cursor, limit)
+        else:
+            next_cursor = None
+        return next_cursor, results
+
+    def get_kind_list(self, kind, cursor, limit):
+        def peek(cursor, limit):
+            if len([x['_id'] for x in self.db[kind+'List'].find().sort('_id', ASCENDING).skip(cursor+limit)]) > 0:
+                return str(cursor+limit)
+            return None
+        cursor = int(cursor)
+        results = [x['_id'] for x in self.db[kind+'List'].find().sort('_id', ASCENDING).skip(cursor).limit(limit)]
+        next_cursor = peek(cursor, limit)
+        return next_cursor, results
+
 
 
 def check_limit(limit):
@@ -202,8 +282,8 @@ class ObjectList(Resource):
         r['pagination']['starting_cursor'] = args['cursor']
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
-        r['object_list'] = [{'id': x[0].decode('utf-8'),
-                             '_link': API.url_for(Object, id=x[0].decode('utf-8'))}
+        r['object_list'] = [{'id': x,
+                             '_link': API.url_for(Object, id=x)}
                             for x in q[1]]
         return r
 
@@ -243,7 +323,7 @@ class Object(Resource):
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
-                    linkingRelationshipIdentifierValue=x[0].decode("utf-8")
+                    linkingRelationshipIdentifierValue=x
                 )
             )
         return rec.to_dict()
@@ -270,7 +350,7 @@ class ObjectLinkedRelationships(Resource):
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRelationshipIdentifier_list'] = [
-            {'id': x[0].decode("utf-8"), '_link':  API.url_for(Relationship, id=x[0].decode("utf-8"))}
+            {'id': x, '_link':  API.url_for(Relationship, id=x)}
             for x in q[1]
         ]
         return r
@@ -299,7 +379,7 @@ class EventList(Resource):
         r['pagination']['starting_cursor'] = args['cursor']
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
-        r['event_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Event, id=x[0].decode('utf-8'))}
+        r['event_list'] = [{'id': x, '_link': API.url_for(Event, id=x)}
                            for x in q[1]]
         return r
 
@@ -339,7 +419,7 @@ class Event(Resource):
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
-                    linkingRelationshipIdentifierValue=x[0].decode("utf-8")
+                    linkingRelationshipIdentifierValue=x
                 )
             )
         return rec.to_dict()
@@ -366,7 +446,7 @@ class EventLinkedRelationships(Resource):
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRelationshipIdentifier_list'] = [
-            {'id': x[0].decode("utf-8"), '_link': API.url_for(Relationship, id=x[0].decode("utf-8"))}
+            {'id': x, '_link': API.url_for(Relationship, id=x)}
             for x in q[1]
         ]
         return r
@@ -395,7 +475,7 @@ class AgentList(Resource):
         r['pagination']['starting_cursor'] = args['cursor']
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
-        r['agent_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Agent, id=x[0].decode('utf-8'))}
+        r['agent_list'] = [{'id': x, '_link': API.url_for(Agent, id=x)}
                            for x in q[1]]
         return r
 
@@ -435,7 +515,7 @@ class Agent(Resource):
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
-                    linkingRelationshipIdentifierValue=x[0].decode("utf-8")
+                    linkingRelationshipIdentifierValue=x
                 )
             )
         return rec.to_dict()
@@ -462,7 +542,7 @@ class AgentLinkedRelationships(Resource):
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRelationshipIdentifier_list'] = [
-            {'id': x[0].decode("utf-8"), '_link': API.url_for(Relationship, id=x[0].decode("utf-8"))}
+            {'id': x, '_link': API.url_for(Relationship, id=x)}
             for x in q[1]
         ]
         return r
@@ -491,7 +571,7 @@ class RightsList(Resource):
         r['pagination']['starting_cursor'] = args['cursor']
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
-        r['rights_list'] = [{'id': x[0].decode('utf-8'), '_link': API.url_for(Rights, id=x[0].decode('utf-8'))}
+        r['rights_list'] = [{'id': x, '_link': API.url_for(Rights, id=x)}
                             for x in q[1]]
         return r
 
@@ -531,7 +611,7 @@ class Rights(Resource):
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
                     linkingRelationshipIdentifierType="uuid",
-                    linkingRelationshipIdentifierValue=x[0].decode("utf-8")
+                    linkingRelationshipIdentifierValue=x
                 )
             )
         return rec.to_dict()
@@ -558,7 +638,7 @@ class RightsLinkedRelationships(Resource):
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRelationshipIdentifier_list'] = [
-            {'id': x[0].decode("utf-8"), '_link': API.url_for(Relationship, id=x[0].decode("utf-8"))}
+            {'id': x, '_link': API.url_for(Relationship, id=x)}
             for x in q[1]
         ]
         return r
@@ -588,7 +668,7 @@ class RelationshipList(Resource):
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
         r['relationship_list'] = [
-            {'id': x[0].decode('utf-8'), '_link': API.url_for(Relationship, id=x[0].decode('utf-8'))}
+            {'id': x, '_link': API.url_for(Relationship, id=x)}
             for x in q[1]
         ]
         return r
@@ -656,7 +736,7 @@ class Relationship(Resource):
             rec.add_linkingObjectIdentifier(
                 pyqremis.LinkingObjectIdentifier(
                     linkingObjectIdentifierType="uuid",
-                    linkingObjectIdentifierValue=x[0].decode("utf-8")
+                    linkingObjectIdentifierValue=x
                 )
             )
 
@@ -664,7 +744,7 @@ class Relationship(Resource):
             rec.add_linkingAgentIdentifier(
                 pyqremis.LinkingAgentIdentifier(
                     linkingAgentIdentifierType="uuid",
-                    linkingAgentIdentifierValue=x[0].decode("utf-8")
+                    linkingAgentIdentifierValue=x
                 )
             )
 
@@ -672,7 +752,7 @@ class Relationship(Resource):
             rec.add_linkingEventIdentifier(
                 pyqremis.LinkingEventIdentifier(
                     linkingEventIdentifierType="uuid",
-                    linkingEventIdentifierValue=x[0].decode("utf-8")
+                    linkingEventIdentifierValue=x
                 )
             )
 
@@ -680,7 +760,7 @@ class Relationship(Resource):
             rec.add_linkingRightsIdentifier(
                 pyqremis.LinkingRightsIdentifier(
                     linkingRightsIdentifierType="uuid",
-                    linkingRightsIdentifierValue=x[0].decode("utf-8")
+                    linkingRightsIdentifierValue=x
                 )
             )
         return rec.to_dict()
@@ -707,7 +787,7 @@ class RelationshipLinkedObjects(Resource):
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingObjectIdentifier_list'] = [
-            {'id': x[0].decode("utf-8"), '_link': API.url_for(Object, id=x[0].decode("utf-8"))}
+            {'id': x, '_link': API.url_for(Object, id=x)}
             for x in q[1]
         ]
         return r
@@ -737,7 +817,7 @@ class RelationshipLinkedEvents(Resource):
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingEventIdentifier_list'] = [
-            {'id': x[0].decode("utf-8"), '_link': API.url_for(Event, id=x[0].decode("utf-8"))}
+            {'id': x, '_link': API.url_for(Event, id=x)}
             for x in q[1]
         ]
         return r
@@ -767,7 +847,7 @@ class RelationshipLinkedAgents(Resource):
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingAgentIdentifier_list'] = [
-            {'id': x[0].decode("utf-8"), '_link': API.url_for(Agent, id=x[0].decode("utf-8"))}
+            {'id': x, '_link': API.url_for(Agent, id=x)}
             for x in q[1]
         ]
         return r
@@ -797,7 +877,7 @@ class RelationshipLinkedRights(Resource):
         r['pagination']['next_cursor'] = q[0] if q[0] != 0 else None
         r['pagination']['limit'] = check_limit(args['limit'])
         r['linkingRightsIdentifier_list'] = [
-            {'id': x[0].decode("utf-8"), '_link': API.url_for(Rights, id=x[0].decode("utf-8"))}
+            {'id': x, '_link': API.url_for(Rights, id=x)}
             for x in q[1]
         ]
         return r
@@ -825,7 +905,8 @@ def handle_configs(setup_state):
     BLUEPRINT.config.update(app.config)
 
     storage_backends = {
-        'redis': RedisStorageBackend
+        'redis': RedisStorageBackend,
+        'mongo': MongoStorageBackend
     }
 
 

@@ -20,6 +20,7 @@ setup(
         'flask>0',
         'flask_restful',
         'redis',
+        'pymongo',
         'pyqremis'
     ],
 )
