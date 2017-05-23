@@ -51,19 +51,11 @@ def add_linkingRelationshipIdentifier(entity, rel_id):
     )
 
 
-class AddEntitiesTests(unittest.TestCase):
+class TestsMixin:
     def setUp(self):
         self.maxDiff = None
         qremis_api.app.config['TESTING'] = True
         self.app = qremis_api.app.test_client()
-        qremis_api.blueprint.BLUEPRINT.config['redis'] = redis.StrictRedis(
-            host='localhost',
-            port=6379,
-            db=0
-        )
-
-    def tearDown(self):
-        qremis_api.blueprint.BLUEPRINT.config['redis'].flushdb()
 
     def response_200_json(self, rv):
         self.assertEqual(rv.status_code, 200)
@@ -1167,6 +1159,20 @@ class AddEntitiesTests(unittest.TestCase):
         self.assertEqual(len(comp_rel_ids), len(set(comp_rel_ids)))
         for x in comp_rel_ids:
             self.assertIn(x, relationship_ids)
+
+
+class RedisTests(TestsMixin, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        qremis_api.blueprint.BLUEPRINT.config['REDIS_HOST'] = 'localhost'
+        qremis_api.blueprint.BLUEPRINT.config['REDIS_PORT'] = 6379
+        qremis_api.blueprint.BLUEPRINT.config['db'] = 0
+        qremis_api.blueprint.BLUEPRINT.config['storage'] = qremis_api.blueprint.RedisStorageBackend(
+            qremis_api.blueprint.BLUEPRINT
+        )
+
+    def tearDown(self):
+        qremis_api.blueprint.BLUEPRINT.config['storage'].redis.flushdb()
 
 
 if __name__ == '__main__':
