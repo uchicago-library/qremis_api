@@ -437,18 +437,21 @@ class ObjectList(Resource):
                 objId = x.get_objectIdentifierValue()
         if objId is None:
             raise MissingQremisUUIDIdentifierError()
+        relationships_to_link = []
         try:
             for x in rec.get_linkingRelationshipIdentifier():
                 if x.get_linkingRelationshipIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records(
-                        "object", objId, "relationship", x.get_linkingRelationshipIdentifierValue()
-                    )
+                    relationships_to_link.append(x.get_linkingRelationshipIdentifierValue())
                 else:
                     raise MissingQremisUUIDIdentifierError()
             rec.del_linkingRelationshipIdentifier()
         except KeyError:
             pass
         BLUEPRINT.config['storage'].add_record("object", objId, dumps(rec.to_dict()))
+        for x in relationships_to_link:
+            BLUEPRINT.config['storage'].link_records(
+                "object", objId, "relationship", x
+            )
         r = {}
         r['_link'] = API.url_for(Object, id=objId)
         r['id'] = objId
@@ -544,18 +547,21 @@ class EventList(Resource):
                 eventId = x.get_eventIdentifierValue()
         if eventId is None:
             raise MissingQremisUUIDIdentifierError()
+        relationships_to_link = []
         try:
             for x in rec.get_linkingRelationshipIdentifier():
                 if x.get_linkingRelationshipIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records(
-                        "event", eventId, "relationship", x.get_linkingRelationshipIdentifierValue()
-                    )
+                    relationships_to_link.append(x.get_linkingRelationshipIdentifierValue())
                 else:
                     raise MissingQremisUUIDIdentifierError()
             rec.del_linkingRelationshipIdentifier()
         except KeyError:
             pass
         BLUEPRINT.config['storage'].add_record("event", eventId, dumps(rec.to_dict()))
+        for x in relationships_to_link:
+            BLUEPRINT.config['storage'].link_records(
+                "event", eventId, "relationship", x
+            )
         r = {}
         r['_link'] = API.url_for(Event, id=eventId)
         r['id'] = eventId
@@ -651,18 +657,21 @@ class AgentList(Resource):
                 agentId = x.get_agentIdentifierValue()
         if agentId is None:
             raise MissingQremisUUIDIdentifierError()
+        relationships_to_link = []
         try:
             for x in rec.get_linkingRelationshipIdentifier():
                 if x.get_linkingRelationshipIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records(
-                        "agent", agentId, "relationship", x.get_linkingRelationshipIdentifierValue()
-                    )
+                    relationships_to_link.append(x.get_linkingRelationshipIdentifierValue())
                 else:
                     raise MissingQremisUUIDIdentifierError()
             rec.del_linkingRelationshipIdentifier()
         except KeyError:
             pass
         BLUEPRINT.config['storage'].add_record("agent", agentId, dumps(rec.to_dict()))
+        for x in relationships_to_link:
+            BLUEPRINT.config['storage'].link_records(
+                "agent", agentId, "relationship", x
+            )
         r = {}
         r['_link'] = API.url_for(Agent, id=agentId)
         r['id'] = agentId
@@ -758,18 +767,21 @@ class RightsList(Resource):
                 rightsId = x.get_rightsIdentifierValue()
         if rightsId is None:
             raise MissingQremisUUIDIdentifierError()
+        relationships_to_link = []
         try:
             for x in rec.get_linkingRelationshipIdentifier():
                 if x.get_linkingRelationshipIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records(
-                        "rights", rightsId, "relationship", x.get_linkingRelationshipIdentifierValue()
-                    )
+                    relationships_to_link.append(x.get_linkingRelationshipIdentifierValue())
                 else:
                     raise MissingQremisUUIDIdentifierError()
             rec.del_linkingRelationshipIdentifier()
         except KeyError:
             pass
         BLUEPRINT.config['storage'].add_record("rights", rightsId, dumps(rec.to_dict()))
+        for x in relationships_to_link:
+            BLUEPRINT.config['storage'].link_records(
+                "rights", rightsId, "relationship", x
+            )
         r = {}
         r['_link'] = API.url_for(Rights, id=rightsId)
         r['id'] = rightsId
@@ -868,48 +880,44 @@ class RelationshipList(Resource):
         if relationshipId is None:
             raise MissingQremisUUIDIdentifierError()
 
+        objects_to_link = []
         try:
             for x in rec.get_linkingObjectIdentifier():
                 if x.get_linkingObjectIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records(
-                        "object", x.get_linkingObjectIdentifierValue(), "relationship", relationshipId
-                    )
+                    objects_to_link.append(x.get_linkingObjectIdentifierValue())
                 else:
                     raise MissingQremisUUIDIdentifierError()
             rec.del_linkingObjectIdentifier()
         except KeyError:
             pass
 
+        events_to_link = []
         try:
             for x in rec.get_linkingEventIdentifier():
                 if x.get_linkingEventIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records(
-                        "event", x.get_linkingEventIdentifierValue(), "relationship", relationshipId
-                    )
+                    events_to_link.append(x.get_linkingEventIdentifierValue())
                 else:
                     raise MissingQremisUUIDIdentifierError()
             rec.del_linkingEventIdentifier()
         except KeyError:
             pass
 
+        agents_to_link = []
         try:
             for x in rec.get_linkingAgentIdentifier():
                 if x.get_linkingAgentIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records(
-                        "agent", x.get_linkingAgentIdentifierValue(), "relationship", relationshipId
-                    )
+                    agents_to_link.append(x.get_linkingAgentIdentifierValue())
                 else:
                     raise MissingQremisUUIDIdentifierError()
             rec.del_linkingAgentIdentifier()
         except KeyError:
             pass
 
+        rights_to_link = []
         try:
             for x in rec.get_linkingRightsIdentifier():
                 if x.get_linkingRightsIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records(
-                        "rights", x.get_linkingRightsIdentifierValue(), "relationship", relationshipId
-                    )
+                    rights_to_link.append(x.get_linkingRightsIdentifierValue())
                 else:
                     raise MissingQremisUUIDIdentifierError()
             rec.del_linkingRightsIdentifier()
@@ -917,6 +925,23 @@ class RelationshipList(Resource):
             pass
 
         BLUEPRINT.config['storage'].add_record("relationship", relationshipId, dumps(rec.to_dict()))
+        for x in objects_to_link:
+            BLUEPRINT.config['storage'].link_records(
+                "object", x, "relationship", relationshipId
+            )
+        for x in events_to_link:
+            BLUEPRINT.config['storage'].link_records(
+                "event", x, "relationship", relationshipId
+            )
+        for x in agents_to_link:
+            BLUEPRINT.config['storage'].link_records(
+                "agent", x, "relationship", relationshipId
+            )
+        for x in rights_to_link:
+            BLUEPRINT.config['storage'].link_records(
+                "rights", x, "relationship", relationshipId
+            )
+
         r = {}
         r['_link'] = API.url_for(Relationship, id=relationshipId)
         r['id'] = relationshipId
