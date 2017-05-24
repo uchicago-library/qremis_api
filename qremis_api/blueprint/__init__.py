@@ -3,7 +3,7 @@ from uuid import uuid4
 from json import dumps, loads
 from abc import ABCMeta, abstractmethod
 
-from flask import Blueprint, abort, jsonify
+from flask import Blueprint, jsonify
 from flask_restful import Resource, Api, reqparse
 import redis
 from pymongo import MongoClient, ASCENDING
@@ -32,11 +32,13 @@ pagination_args_parser.add_argument('limit', type=int, default=1000)
 
 class Error(Exception):
     """Base class for exceptions in this module."""
-
     error_name = "Error"
+    status_code = 500
+    message = ""
 
-    def __init__(self, message):
-        self.message = message
+    def __init__(self, message=None):
+        if message is not None:
+            self.message = message
 
     def to_dict(self):
         return {"message": self.message,
@@ -45,27 +47,40 @@ class Error(Exception):
 
 class UserError(Error):
     error_name = "UserError"
+    status_code = 400
 
 
 class ServerError(Error):
     error_name = "ServerError"
+    status_code = 500
+
+
+class NotFoundError(Error):
+    error_name = "NotFoundError"
+    status_code = 404
 
 
 class DuplicateIdentifierError(UserError):
     error_name = "DuplicateIdentifierError"
 
 
+class IdentifierDoesNotExistError(NotFoundError):
+    error_name = "IdentifierDoesNotExistError"
+
+
+class InvalidQremisRecordError(UserError):
+    error_name = "InvalidQremisRecordError"
+
+
+class MissingQremisUUIDIdentifierError(InvalidQremisRecordError):
+    error_name = "MissingQremisUUIDIdentifierError"
+    message = "The QREMIS record is missing a uuid identifier!"
+
+
 @BLUEPRINT.errorhandler(Error)
 def handle_errors(error):
     response = jsonify(error.to_dict())
-    response.status_code = 500
-    return response
-
-
-@BLUEPRINT.errorhandler(UserError)
-def handle_user_errors(error):
-    response = jsonify(error.to_dict())
-    response.status_code = 400
+    response.status_code = error.status_code
     return response
 
 
@@ -131,6 +146,10 @@ class StorageBackend(metaclass=ABCMeta):
 
         * (str): The record, as a JSON str
         """
+        # Note: A lazy way for handling 404ing properly
+        # is to call record_exists() in this function.
+        # but if it's more effeciently to do some way
+        # else in the storage implementation go with that.
         pass
 
     @abstractmethod
@@ -199,10 +218,10 @@ class RedisStorageBackend(StorageBackend):
         if kind1 not in record_kinds or kind2 not in record_kinds:
             raise AssertionError()
         if kind1 == "relationship" and kind2 != "relationship":
-            raise ValueError("It looks like you passed the arguments in the wrong order, " +
-                             "link_records() takes the relationship as the second set (" +
-                             "args[2] and args[3]) of arguments in order to not produce " +
-                             "an additional relationship entity")
+            raise UserError("It looks like you passed the arguments in the wrong order, " +
+                            "link_records() takes the relationship as the second set (" +
+                            "args[2] and args[3]) of arguments in order to not produce " +
+                            "an additional relationship entity")
         log.debug("Attempting to link {}({}) to {}({})".format(kind1, id1, kind2, id2))
         kind3 = None
         id3 = None
@@ -245,7 +264,7 @@ class RedisStorageBackend(StorageBackend):
         try:
             return self.redis.get(id).decode("utf-8")
         except:
-            raise ValueError("Element {} doesn't exist!".format(id))
+            raise IdentifierDoesNotExistError(str(id))
 
     def get_kind_links(self, kind, id, cursor, limit):
         # This is kind of like a non-generator version of zscan_iter, bounded
@@ -306,10 +325,10 @@ class MongoStorageBackend(StorageBackend):
         if kind1 not in record_kinds or kind2 not in record_kinds:
             raise AssertionError()
         if kind1 == "relationship" and kind2 != "relationship":
-            raise ValueError("It looks like you passed the argumnets in the wrong order, " +
-                             "link_records() takes the relationship as the second set (" +
-                             "args[2] and args[3]) of arguments in order to not produce " +
-                             "an additional relationship entity")
+            raise UserError("It looks like you passed the argumnets in the wrong order, " +
+                            "link_records() takes the relationship as the second set (" +
+                            "args[2] and args[3]) of arguments in order to not produce " +
+                            "an additional relationship entity")
         log.debug("Attempting to link {}({}) to {}({})".format(kind1, id1, kind2, id2))
         kind3 = None
         id3 = None
@@ -338,11 +357,10 @@ class MongoStorageBackend(StorageBackend):
             self.db[id3+'Linked'+kind2].insert_one({'_id': id2})
 
     def get_record(self, id):
-        try:
-            return self.db['records'].find_one({'_id': id})['rec']
-        except Exception as e:
-            print(str(e))
-            raise e
+        rec = self.db['records'].find_one({'_id': id})
+        if rec is None:
+            raise IdentifierDoesNotExistError(str(id))
+        return rec['rec']
 
     def get_kind_links(self, kind, id, cursor, limit):
         def peek(cursor, limit):
@@ -421,19 +439,24 @@ class ObjectList(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("record", type=str, required=True)
         args = parser.parse_args()
-        rec = pyqremis.Object.from_dict(loads(args['record']))
+        try:
+            rec = pyqremis.Object.from_dict(loads(args['record']))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         objId = None
         for x in rec.get_objectIdentifier():
             if x.get_objectIdentifierType() == "uuid":
                 objId = x.get_objectIdentifierValue()
         if objId is None:
-            raise RuntimeError()
+            raise MissingQremisUUIDIdentifierError()
         try:
             for x in rec.get_linkingRelationshipIdentifier():
                 if x.get_linkingRelationshipIdentifierType() == "uuid":
                     BLUEPRINT.config['storage'].link_records(
                         "object", objId, "relationship", x.get_linkingRelationshipIdentifierValue()
                     )
+                else:
+                    raise MissingQremisUUIDIdentifierError()
             rec.del_linkingRelationshipIdentifier()
         except KeyError:
             pass
@@ -447,9 +470,11 @@ class ObjectList(Resource):
 class Object(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
-        if not BLUEPRINT.config['storage'].record_exists("object", id):
-            abort(404)
-        rec = pyqremis.Object.from_dict(loads(BLUEPRINT.config['storage'].get_record(id)))
+        rec_str = BLUEPRINT.config['storage'].get_record(id)
+        try:
+            rec = pyqremis.Object.from_dict(loads(rec_str))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         for x in BLUEPRINT.config['storage'].get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
@@ -463,9 +488,11 @@ class Object(Resource):
 class SparseObject(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
-        if not BLUEPRINT.config['storage'].record_exists("object", id):
-            abort(404)
-        rec = pyqremis.Object.from_dict(loads(BLUEPRINT.config['storage'].get_record(id)))
+        rec_str = BLUEPRINT.config['storage'].get_record(id)
+        try:
+            rec = pyqremis.Object.from_dict(loads(rec_str))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         return rec.to_dict()
 
 
@@ -492,9 +519,9 @@ class ObjectLinkedRelationships(Resource):
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
         if not BLUEPRINT.config['storage'].record_exists("object", id):
-            raise ValueError("No such object identifier! ({})".format(id))
+            raise IdentifierDoesNotExistError(str(id))
         if not BLUEPRINT.config['storage'].record_exists("relationship", args['relationship_id']):
-            raise ValueError("No such relationship identifier! ({})".format(args['relationship_id']))
+            raise IdentifierDoesNotExistError(str(args['relationship_id']))
         BLUEPRINT.config['storage'].link_records("object", id, "relationship", args['relationship_id'])
         return id
 
@@ -519,19 +546,24 @@ class EventList(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("record", type=str, required=True)
         args = parser.parse_args()
-        rec = pyqremis.Event.from_dict(loads(args['record']))
+        try:
+            rec = pyqremis.Event.from_dict(loads(args['record']))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         eventId = None
         for x in rec.get_eventIdentifier():
             if x.get_eventIdentifierType() == "uuid":
                 eventId = x.get_eventIdentifierValue()
         if eventId is None:
-            raise RuntimeError()
+            raise MissingQremisUUIDIdentifierError()
         try:
             for x in rec.get_linkingRelationshipIdentifier():
                 if x.get_linkingRelationshipIdentifierType() == "uuid":
                     BLUEPRINT.config['storage'].link_records(
                         "event", eventId, "relationship", x.get_linkingRelationshipIdentifierValue()
                     )
+                else:
+                    raise MissingQremisUUIDIdentifierError()
             rec.del_linkingRelationshipIdentifier()
         except KeyError:
             pass
@@ -545,9 +577,11 @@ class EventList(Resource):
 class Event(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
-        if not BLUEPRINT.config['storage'].record_exists("event", id):
-            abort(404)
-        rec = pyqremis.Event.from_dict(loads(BLUEPRINT.config['storage'].get_record(id)))
+        rec_str = BLUEPRINT.config['storage'].get_record(id)
+        try:
+            rec = pyqremis.Event.from_dict(loads(rec_str))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         for x in BLUEPRINT.config['storage'].get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
@@ -561,9 +595,11 @@ class Event(Resource):
 class SparseEvent(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
-        if not BLUEPRINT.config['storage'].record_exists("event", id):
-            abort(404)
-        rec = pyqremis.Event.from_dict(loads(BLUEPRINT.config['storage'].get_record(id)))
+        rec_str = BLUEPRINT.config['storage'].get_record(id)
+        try:
+            rec = pyqremis.Event.from_dict(loads(rec_str))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         return rec.to_dict()
 
 
@@ -590,9 +626,9 @@ class EventLinkedRelationships(Resource):
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
         if not BLUEPRINT.config['storage'].record_exists("event", id):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(id))
         if not BLUEPRINT.config['storage'].record_exists("relationship", args['relationship_id']):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(args['relationship_id']))
         BLUEPRINT.config['storage'].link_records("event", id, "relationship", args['relationship_id'])
         return id
 
@@ -617,19 +653,24 @@ class AgentList(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("record", type=str, required=True)
         args = parser.parse_args()
-        rec = pyqremis.Agent.from_dict(loads(args['record']))
+        try:
+            rec = pyqremis.Agent.from_dict(loads(args['record']))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         agentId = None
         for x in rec.get_agentIdentifier():
             if x.get_agentIdentifierType() == "uuid":
                 agentId = x.get_agentIdentifierValue()
         if agentId is None:
-            raise RuntimeError()
+            raise MissingQremisUUIDIdentifierError()
         try:
             for x in rec.get_linkingRelationshipIdentifier():
                 if x.get_linkingRelationshipIdentifierType() == "uuid":
                     BLUEPRINT.config['storage'].link_records(
                         "agent", agentId, "relationship", x.get_linkingRelationshipIdentifierValue()
                     )
+                else:
+                    raise MissingQremisUUIDIdentifierError()
             rec.del_linkingRelationshipIdentifier()
         except KeyError:
             pass
@@ -643,9 +684,11 @@ class AgentList(Resource):
 class Agent(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
-        if not BLUEPRINT.config['storage'].record_exists("agent", id):
-            abort(404)
-        rec = pyqremis.Agent.from_dict(loads(BLUEPRINT.config['storage'].get_record(id)))
+        rec_str = BLUEPRINT.config['storage'].get_record(id)
+        try:
+            rec = pyqremis.Agent.from_dict(loads(rec_str))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         for x in BLUEPRINT.config['storage'].get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
@@ -659,9 +702,11 @@ class Agent(Resource):
 class SparseAgent(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
-        if not BLUEPRINT.config['storage'].record_exists("agent", id):
-            abort(404)
-        rec = pyqremis.Agent.from_dict(loads(BLUEPRINT.config['storage'].get_record(id)))
+        rec_str = BLUEPRINT.config['storage'].get_record(id)
+        try:
+            rec = pyqremis.Agent.from_dict(loads(rec_str))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         return rec.to_dict()
 
 
@@ -688,9 +733,9 @@ class AgentLinkedRelationships(Resource):
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
         if not BLUEPRINT.config['storage'].record_exists("agent", id):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(id))
         if not BLUEPRINT.config['storage'].record_exists("relationship", args['relationship_id']):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(args['relationship_id']))
         BLUEPRINT.config['storage'].link_records("agent", id, "relationship", args['relationship_id'])
         return id
 
@@ -715,19 +760,24 @@ class RightsList(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("record", type=str, required=True)
         args = parser.parse_args()
-        rec = pyqremis.Rights.from_dict(loads(args['record']))
+        try:
+            rec = pyqremis.Rights.from_dict(loads(args['record']))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         rightsId = None
         for x in rec.get_rightsIdentifier():
             if x.get_rightsIdentifierType() == "uuid":
                 rightsId = x.get_rightsIdentifierValue()
         if rightsId is None:
-            raise RuntimeError()
+            raise MissingQremisUUIDIdentifierError()
         try:
             for x in rec.get_linkingRelationshipIdentifier():
                 if x.get_linkingRelationshipIdentifierType() == "uuid":
                     BLUEPRINT.config['storage'].link_records(
                         "rights", rightsId, "relationship", x.get_linkingRelationshipIdentifierValue()
                     )
+                else:
+                    raise MissingQremisUUIDIdentifierError()
             rec.del_linkingRelationshipIdentifier()
         except KeyError:
             pass
@@ -741,9 +791,11 @@ class RightsList(Resource):
 class Rights(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
-        if not BLUEPRINT.config['storage'].record_exists("rights", id):
-            abort(404)
-        rec = pyqremis.Rights.from_dict(loads(BLUEPRINT.config['storage'].get_record(id)))
+        rec_str = BLUEPRINT.config['storage'].get_record(id)
+        try:
+            rec = pyqremis.Rights.from_dict(loads(rec_str))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         for x in BLUEPRINT.config['storage'].get_kind_links("relationship", id, "0", None)[1]:
             rec.add_linkingRelationshipIdentifier(
                 pyqremis.LinkingRelationshipIdentifier(
@@ -757,9 +809,11 @@ class Rights(Resource):
 class SparseRights(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
-        if not BLUEPRINT.config['storage'].record_exists("rights", id):
-            abort(404)
-        rec = pyqremis.Rights.from_dict(loads(BLUEPRINT.config['storage'].get_record(id)))
+        rec_str = BLUEPRINT.config['storage'].get_record(id)
+        try:
+            rec = pyqremis.Rights.from_dict(loads(rec_str))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         return rec.to_dict()
 
 
@@ -786,9 +840,9 @@ class RightsLinkedRelationships(Resource):
         parser.add_argument("relationship_id", type=str, required=True)
         args = parser.parse_args()
         if not BLUEPRINT.config['storage'].record_exists("rights", id):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(id))
         if not BLUEPRINT.config['storage'].record_exists("relationship", args['relationship_id']):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(args['relationship_id']))
         BLUEPRINT.config['storage'].link_records("rights", id, "relationship", args['relationship_id'])
         return id
 
@@ -815,13 +869,16 @@ class RelationshipList(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("record", type=str, required=True)
         args = parser.parse_args()
-        rec = pyqremis.Relationship.from_dict(loads(args['record']))
+        try:
+            rec = pyqremis.Relationship.from_dict(loads(args['record']))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         relationshipId = None
         for x in rec.get_relationshipIdentifier():
             if x.get_relationshipIdentifierType() == "uuid":
                 relationshipId = x.get_relationshipIdentifierValue()
         if relationshipId is None:
-            raise RuntimeError()
+            raise MissingQremisUUIDIdentifierError()
 
         try:
             for x in rec.get_linkingObjectIdentifier():
@@ -829,6 +886,8 @@ class RelationshipList(Resource):
                     BLUEPRINT.config['storage'].link_records(
                         "object", x.get_linkingObjectIdentifierValue(), "relationship", relationshipId
                     )
+                else:
+                    raise MissingQremisUUIDIdentifierError()
             rec.del_linkingObjectIdentifier()
         except KeyError:
             pass
@@ -839,6 +898,8 @@ class RelationshipList(Resource):
                     BLUEPRINT.config['storage'].link_records(
                         "event", x.get_linkingEventIdentifierValue(), "relationship", relationshipId
                     )
+                else:
+                    raise MissingQremisUUIDIdentifierError()
             rec.del_linkingEventIdentifier()
         except KeyError:
             pass
@@ -849,6 +910,8 @@ class RelationshipList(Resource):
                     BLUEPRINT.config['storage'].link_records(
                         "agent", x.get_linkingAgentIdentifierValue(), "relationship", relationshipId
                     )
+                else:
+                    raise MissingQremisUUIDIdentifierError()
             rec.del_linkingAgentIdentifier()
         except KeyError:
             pass
@@ -859,6 +922,8 @@ class RelationshipList(Resource):
                     BLUEPRINT.config['storage'].link_records(
                         "rights", x.get_linkingRightsIdentifierValue(), "relationship", relationshipId
                     )
+                else:
+                    raise MissingQremisUUIDIdentifierError()
             rec.del_linkingRightsIdentifier()
         except KeyError:
             pass
@@ -873,9 +938,11 @@ class RelationshipList(Resource):
 class Relationship(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
-        if not BLUEPRINT.config['storage'].record_exists("relationship", id):
-            abort(404)
-        rec = pyqremis.Relationship.from_dict(loads(BLUEPRINT.config['storage'].get_record(id)))
+        rec_str = BLUEPRINT.config['storage'].get_record(id)
+        try:
+            rec = pyqremis.Relationship.from_dict(loads(rec_str))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
 
         for x in BLUEPRINT.config['storage'].get_kind_links("object", id, "0", None)[1]:
             rec.add_linkingObjectIdentifier(
@@ -914,9 +981,11 @@ class Relationship(Resource):
 class SparseRelationship(Resource):
     def get(self, id):
         log.debug("GET received @ {}".format(self.__class__.__name__))
-        if not BLUEPRINT.config['storage'].record_exists("relationship", id):
-            abort(404)
-        rec = pyqremis.Relationship.from_dict(loads(BLUEPRINT.config['storage'].get_record(id)))
+        rec_str = BLUEPRINT.config['storage'].get_record(id)
+        try:
+            rec = pyqremis.Relationship.from_dict(loads(rec_str))
+        except Exception as e:
+            raise InvalidQremisRecordError(str(e))
         return rec.to_dict()
 
 
@@ -943,9 +1012,9 @@ class RelationshipLinkedObjects(Resource):
         parser.add_argument("object_id", type=str, required=True)
         args = parser.parse_args()
         if not BLUEPRINT.config['storage'].record_exists("relationship", id):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(id))
         if not BLUEPRINT.config['storage'].record_exists("object", args['object_id']):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(args['object_id']))
         BLUEPRINT.config['storage'].link_records("object", args['object_id'], "relationship", id)
         return id
 
@@ -973,9 +1042,9 @@ class RelationshipLinkedEvents(Resource):
         parser.add_argument("event_id", type=str, required=True)
         args = parser.parse_args()
         if not BLUEPRINT.config['storage'].record_exists("relationship", id):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(id))
         if not BLUEPRINT.config['storage'].record_exists("event", args['event_id']):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(args['event_id']))
         BLUEPRINT.config['storage'].link_records("event", args['event_id'], "relationship", id)
         return id
 
@@ -1003,9 +1072,9 @@ class RelationshipLinkedAgents(Resource):
         parser.add_argument("agent_id", type=str, required=True)
         args = parser.parse_args()
         if not BLUEPRINT.config['storage'].record_exists("relationship", id):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(id))
         if not BLUEPRINT.config['storage'].record_exists("agent", args['agent_id']):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(args['agent_id']))
         BLUEPRINT.config['storage'].link_records("agent", args['agent_id'], "relationship", id)
         return id
 
@@ -1033,9 +1102,9 @@ class RelationshipLinkedRights(Resource):
         parser.add_argument("rights_id", type=str, required=True)
         args = parser.parse_args()
         if not BLUEPRINT.config['storage'].record_exists("relationship", id):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(id))
         if not BLUEPRINT.config['storage'].record_exists("rights", args['rights_id']):
-            raise ValueError("Non-existent identifier!")
+            raise IdentifierDoesNotExistError(str(args['rights_id']))
         BLUEPRINT.config['storage'].link_records("rights", args['rights_id'], "relationship", id)
         return id
 
