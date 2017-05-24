@@ -398,6 +398,40 @@ class TestsMixin:
         rgrj = self.response_200_json(rgrv)
         self.assertEqual(rgrj, relationship.to_dict())
 
+    def test_manuallyLinkObjectThatDoesntExist(self):
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        rprj = self.response_200_json(rprv)
+
+        obj = make_object()
+        obj_identifier = obj.get_objectIdentifier()[0].get_objectIdentifierValue()
+        oprrv = self.app.post("/object_list/{}/linkedRelationships".format(obj_identifier),
+                              data={"relationship_id": relationship_id})
+        self.assertEqual(oprrv.status_code, 404)
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
+
+    def test_manuallyLinkObjectToRelationshipThatDoesntExist(self):
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+
+        obj = make_object()
+        obj_identifier = obj.get_objectIdentifier()[0].get_objectIdentifierValue()
+        obj_json = obj.to_dict()
+        oprv = self.app.post("/object_list", data={"record": json.dumps(obj_json)})
+        oprj = self.response_200_json(oprv)
+        oprrv = self.app.post("/object_list/{}/linkedRelationships".format(obj_identifier),
+                              data={"relationship_id": relationship_id})
+        self.assertEqual(oprrv.status_code, 404)
+
+        ogrv = self.app.get("/object_list/{}".format(obj_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, obj.to_dict())
+
     def test_manuallyLinkEvent(self):
         relationship = make_relationship()
         relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
@@ -434,6 +468,40 @@ class TestsMixin:
         rgrv = self.app.get("relationship_list/{}".format(relationship_id))
         rgrj = self.response_200_json(rgrv)
         self.assertEqual(rgrj, relationship.to_dict())
+
+    def test_manuallyLinkEventThatDoesntExist(self):
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+        relationship_json = relationship.to_dict()
+        rprv = self.app.post("/relationship_list", data={"record": json.dumps(relationship_json)})
+        self.response_200_json(rprv)
+
+        event = make_event()
+        event_identifier = event.get_eventIdentifier()[0].get_eventIdentifierValue()
+        oprrv = self.app.post("/event_list/{}/linkedRelationships".format(event_identifier),
+                              data={"relationship_id": relationship_id})
+        self.assertEqual(oprrv.status_code, 404)
+
+        rgrv = self.app.get("relationship_list/{}".format(relationship_id))
+        rgrj = self.response_200_json(rgrv)
+        self.assertEqual(rgrj, relationship.to_dict())
+
+    def test_manuallyLinkEventToRelationshipThatDoesntExist(self):
+        relationship = make_relationship()
+        relationship_id = relationship.get_relationshipIdentifier()[0].get_relationshipIdentifierValue()
+
+        event = make_event()
+        event_identifier = event.get_eventIdentifier()[0].get_eventIdentifierValue()
+        event_json = event.to_dict()
+        oprv = self.app.post("/event_list", data={"record": json.dumps(event_json)})
+        self.response_200_json(oprv)
+        oprrv = self.app.post("/event_list/{}/linkedRelationships".format(event_identifier),
+                              data={"relationship_id": relationship_id})
+        self.assertEqual(oprrv.status_code, 404)
+
+        ogrv = self.app.get("/event_list/{}".format(event_identifier))
+        ogrj = self.response_200_json(ogrv)
+        self.assertEqual(ogrj, event.to_dict())
 
     def test_manuallyLinkAgent(self):
         relationship = make_relationship()
