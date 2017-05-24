@@ -3,10 +3,11 @@ from uuid import uuid4
 from json import dumps, loads
 from abc import ABCMeta, abstractmethod
 
-from flask import Blueprint, abort
+from flask import Blueprint, abort, jsonify
 from flask_restful import Resource, Api, reqparse
 import redis
 from pymongo import MongoClient, ASCENDING
+from pymongo.errors import DuplicateKeyError
 
 import pyqremis
 
@@ -27,6 +28,26 @@ record_kinds = ["object", "event", "agent", "rights", "relationship"]
 pagination_args_parser = reqparse.RequestParser()
 pagination_args_parser.add_argument('cursor', type=str, default="0")
 pagination_args_parser.add_argument('limit', type=int, default=1000)
+
+
+
+
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    def __init__(self, message):
+        self.message = message
+
+
+class DuplicateIdentifierError(Error):
+    pass
+
+
+@BLUEPRINT.errorhandler(Error)
+def handle_invalid_usage(error):
+#    response = jsonify(error.to_dict())
+    response = jsonify({"message": error.message})
+    response.status_code = 500
+    return response
 
 
 class StorageBackend(metaclass=ABCMeta):
@@ -72,6 +93,8 @@ class RedisStorageBackend(StorageBackend):
     def add_record(self, kind, id, rec):
         if kind not in record_kinds:
             raise AssertionError()
+        if self.record_exists(kind, id):
+            raise DuplicateIdentifierError("Identifier {} already exists".format(str(id)))
         log.debug("Adding {} record with id {}".format(kind, id))
         self.redis.setnx(id, rec)
         self.redis.zadd(kind+"List", 0, id)
@@ -177,8 +200,11 @@ class MongoStorageBackend(StorageBackend):
         return bool(self.db['records'].find_one({'_id': id}))
 
     def add_record(self, kind, id, rec):
-        self.db['records'].insert_one({'_id': id, 'rec': rec})
-        self.db[kind+'List'].insert_one({'_id': id})
+        try:
+            self.db['records'].insert_one({'_id': id, 'rec': rec})
+            self.db[kind+'List'].insert_one({'_id': id})
+        except DuplicateKeyError:
+            raise DuplicateIdentifierError("Identifier {} already exists".format(str(id)))
 
     def link_records(self, kind1, id1, kind2, id2):
         if kind1 not in record_kinds or kind2 not in record_kinds:

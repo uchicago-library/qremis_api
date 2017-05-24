@@ -92,6 +92,46 @@ class TestsMixin:
         rv = self.app.post("/object_list", data={"record": json.dumps(entity_json)})
         rj = self.response_200_json(rv)
 
+    def test_postDuplicateObject(self):
+        entity = make_object()
+        entity_json = entity.to_dict()
+        rv = self.app.post("/object_list", data={"record": json.dumps(entity_json)})
+        rj = self.response_200_json(rv)
+        drv = self.app.post("/object_list", data={"record": json.dumps(entity_json)})
+        self.assertEqual(drv.status_code, 500)
+
+    def test_postDuplicateEvent(self):
+        entity = make_event()
+        entity_json = entity.to_dict()
+        rv = self.app.post("/event_list", data={"record": json.dumps(entity_json)})
+        rj = self.response_200_json(rv)
+        drv = self.app.post("/event_list", data={"record": json.dumps(entity_json)})
+        self.assertEqual(drv.status_code, 500)
+
+    def test_postDuplicateAgent(self):
+        entity = make_agent()
+        entity_json = entity.to_dict()
+        rv = self.app.post("/agent_list", data={"record": json.dumps(entity_json)})
+        rj = self.response_200_json(rv)
+        drv = self.app.post("/agent_list", data={"record": json.dumps(entity_json)})
+        self.assertEqual(drv.status_code, 500)
+
+    def test_postDuplicateRights(self):
+        entity = make_rights()
+        entity_json = entity.to_dict()
+        rv = self.app.post("/rights_list", data={"record": json.dumps(entity_json)})
+        rj = self.response_200_json(rv)
+        drv = self.app.post("/rights_list", data={"record": json.dumps(entity_json)})
+        self.assertEqual(drv.status_code, 500)
+
+    def test_postDuplicateRelationship(self):
+        entity = make_relationship()
+        entity_json = entity.to_dict()
+        rv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
+        rj = self.response_200_json(rv)
+        drv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
+        self.assertEqual(drv.status_code, 500)
+
     def test_postEvent(self):
         entity = make_event()
         entity_json = entity.to_dict()
