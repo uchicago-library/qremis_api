@@ -10,9 +10,9 @@ services:
         ports: 
             - "8911:8911"
         depends_on:
-            - redis
+            - qremis_api_redis
         environment:
-            - QREMIS_API_CONFIG=/code/config.py
-    redis:
+            - QREMIS_API_CONFIG=/code/dc_config.py
+    qremis_api_redis:
         image: "redis"
         entrypoint: "redis-server --appendonly yes"
