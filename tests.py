@@ -92,6 +92,31 @@ class TestsMixin:
         rv = self.app.post("/object_list", data={"record": json.dumps(entity_json)})
         rj = self.response_200_json(rv)
 
+    def test_postNotObject(self):
+        entity = "This isn't qremis"
+        rv = self.app.post("/object_list", data={"record": entity})
+        self.assertEqual(rv.status_code, 400)
+
+    def test_postNotEvent(self):
+        entity = "This isn't qremis"
+        rv = self.app.post("/event_list", data={"record": entity})
+        self.assertEqual(rv.status_code, 400)
+
+    def test_postNotAgent(self):
+        entity = "This isn't qremis"
+        rv = self.app.post("/agent_list", data={"record": entity})
+        self.assertEqual(rv.status_code, 400)
+
+    def test_postNotRights(self):
+        entity = "This isn't qremis"
+        rv = self.app.post("/rights_list", data={"record": entity})
+        self.assertEqual(rv.status_code, 400)
+
+    def test_postNotRelationship(self):
+        entity = "This isn't qremis"
+        rv = self.app.post("/relationship_list", data={"record": entity})
+        self.assertEqual(rv.status_code, 400)
+
     def test_postDuplicateObject(self):
         entity = make_object()
         entity_json = entity.to_dict()

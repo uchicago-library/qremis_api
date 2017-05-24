@@ -218,47 +218,41 @@ class RedisStorageBackend(StorageBackend):
         if kind1 not in record_kinds or kind2 not in record_kinds:
             raise AssertionError()
         if kind1 == "relationship" and kind2 != "relationship":
-            raise UserError("It looks like you passed the arguments in the wrong order, " +
-                            "link_records() takes the relationship as the second set (" +
-                            "args[2] and args[3]) of arguments in order to not produce " +
-                            "an additional relationship entity")
+            raise AssertionError("It looks like you passed the arguments in the wrong order, " +
+                                 "link_records() takes the relationship as the second set (" +
+                                 "args[2] and args[3]) of arguments in order to not produce " +
+                                 "an additional relationship entity")
         log.debug("Attempting to link {}({}) to {}({})".format(kind1, id1, kind2, id2))
-        kind3 = None
-        id3 = None
-        if kind2 != "relationship":
-            log.debug("target record is not a relationship - creating a simple " +
-                      "linking relationship")
-            kind3 = kind2
-            id3 = id2
-            kind2 = "relationship"
-            id2 = uuid4().hex
-            log.debug("Minting simple linking relationship ({})".format(id2))
-            relationship_record = pyqremis.Relationship(
-                pyqremis.RelationshipIdentifier(
-                    relationshipIdentifierType='uuid',
-                    relationshipIdentifierValue=uuid4().hex
-                ),
-                relationshipType="link",
-                relationshipSubType="simple",
-                relationshipNote="Automatically created to facilitate linking"
-            )
-            self.add_record(kind2, id2, dumps(relationship_record.to_dict()))
-        # This puts kind of a lot of responsibility on the client to dissect the records
-        # before POSTing them and working with linking aftwards
-        # Eg, you can't just say "this is linked to a thing I'm going to add later"
-        # Instead you have to look back through your objects (that you've taken apart)
-        # in your app space saying "and now I will re-establish that object X participates in
-        # relationship Y"
-        # if not record_exists(kind1, id1) or not record_exists(kind2, id2):
-        #     raise ValueError("A targeted record does not exist")
-        # if kind3 is not None and not record_exists(kind3, id3):
-        #     raise ValueError("A targeted record does not exist")
-        # Bidirectional linking
+#
+# This code creates a stub relationship if you link any two other entities directly together
+# with no intervening relationship. At the moment none of this code is exposed through the
+# API itself, so I've commented it out.
+#
+#        kind3 = None
+#        id3 = None
+#        if kind2 != "relationship":
+#            log.debug("target record is not a relationship - creating a simple " +
+#                      "linking relationship")
+#            kind3 = kind2
+#            id3 = id2
+#            kind2 = "relationship"
+#            id2 = uuid4().hex
+#            log.debug("Minting simple linking relationship ({})".format(id2))
+#            relationship_record = pyqremis.Relationship(
+#                pyqremis.RelationshipIdentifier(
+#                    relationshipIdentifierType='uuid',
+#                    relationshipIdentifierValue=uuid4().hex
+#                ),
+#                relationshipType="link",
+#                relationshipSubType="simple",
+#                relationshipNote="Automatically created to facilitate linking"
+#            )
+#            self.add_record(kind2, id2, dumps(relationship_record.to_dict()))
         self.redis.zadd(id1+"_"+kind2+"Links", 0, id2)
         self.redis.zadd(id2+"_"+kind1+"Links", 0, id1)
-        if kind3 is not None and id3 is not None:
-            self.redis.zadd(id2+"_"+kind3+"Links", 0, id3)
-            self.redis.zadd(id3+"_"+kind2+"Links", 0, id2)
+#        if kind3 is not None and id3 is not None:
+#            self.redis.zadd(id2+"_"+kind3+"Links", 0, id3)
+#            self.redis.zadd(id3+"_"+kind2+"Links", 0, id2)
 
     def get_record(self, id):
         try:
@@ -292,17 +286,11 @@ class RedisStorageBackend(StorageBackend):
         if kind not in record_kinds:
             raise AssertionError()
         results = []
-        if limit:
-            while cursor != 0 and limit > 0:
-                cursor, data = self.redis.zscan(kind+"List", cursor=cursor, count=limit)
-                limit = limit - len(data)
-                for item in data:
-                    results.append(item)
-        else:
-            while cursor != 0:
-                cursor, data = self.redis.zscan(kind+"List", cursor=cursor, count=limit)
-                for item in data:
-                    results.append(item)
+        while cursor != 0 and limit > 0:
+            cursor, data = self.redis.zscan(kind+"List", cursor=cursor, count=limit)
+            limit = limit - len(data)
+            for item in data:
+                results.append(item)
         return cursor, [x[0].decode("utf-8") for x in results]
 
 
@@ -325,36 +313,36 @@ class MongoStorageBackend(StorageBackend):
         if kind1 not in record_kinds or kind2 not in record_kinds:
             raise AssertionError()
         if kind1 == "relationship" and kind2 != "relationship":
-            raise UserError("It looks like you passed the argumnets in the wrong order, " +
-                            "link_records() takes the relationship as the second set (" +
-                            "args[2] and args[3]) of arguments in order to not produce " +
-                            "an additional relationship entity")
+            raise AssertionError("It looks like you passed the argumnets in the wrong order, " +
+                                 "link_records() takes the relationship as the second set (" +
+                                 "args[2] and args[3]) of arguments in order to not produce " +
+                                 "an additional relationship entity")
         log.debug("Attempting to link {}({}) to {}({})".format(kind1, id1, kind2, id2))
-        kind3 = None
-        id3 = None
-        if kind2 != "relationship":
-            log.debug("target record is not a relationship - creating a simple " +
-                      "linking relationship")
-            kind3 = kind2
-            id3 = id2
-            kind2 = "relationship"
-            id2 = uuid4().hex
-            log.debug("Minting simple linking relationship ({})".format(id2))
-            relationship_record = pyqremis.Relationship(
-                pyqremis.RelationshipIdentifier(
-                    relationshipIdentifierType='uuid',
-                    relationshipIdentifierValue=uuid4().hex
-                ),
-                relationshipType="link",
-                relationshipSubType="simple",
-                relationshipNote="Automatically created to facilitate linking"
-            )
-            self.add_record(kind2, id2, dumps(relationship_record.to_dict()))
+#        kind3 = None
+#        id3 = None
+#        if kind2 != "relationship":
+#            log.debug("target record is not a relationship - creating a simple " +
+#                      "linking relationship")
+#            kind3 = kind2
+#            id3 = id2
+#            kind2 = "relationship"
+#            id2 = uuid4().hex
+#            log.debug("Minting simple linking relationship ({})".format(id2))
+#            relationship_record = pyqremis.Relationship(
+#                pyqremis.RelationshipIdentifier(
+#                    relationshipIdentifierType='uuid',
+#                    relationshipIdentifierValue=uuid4().hex
+#                ),
+#                relationshipType="link",
+#                relationshipSubType="simple",
+#                relationshipNote="Automatically created to facilitate linking"
+#            )
+#            self.add_record(kind2, id2, dumps(relationship_record.to_dict()))
         self.db[id1+'Linked'+kind2].insert_one({'_id': id2})
         self.db[id2+'Linked'+kind1].insert_one({'_id': id1})
-        if kind3 is not None and id3 is not None:
-            self.db[id2+'Linked'+kind3].insert_one({'_id': id3})
-            self.db[id3+'Linked'+kind2].insert_one({'_id': id2})
+#        if kind3 is not None and id3 is not None:
+#            self.db[id2+'Linked'+kind3].insert_one({'_id': id3})
+#            self.db[id3+'Linked'+kind2].insert_one({'_id': id2})
 
     def get_record(self, id):
         rec = self.db['records'].find_one({'_id': id})
@@ -1112,10 +1100,6 @@ class RelationshipLinkedRights(Resource):
 @BLUEPRINT.record
 def handle_configs(setup_state):
     app = setup_state.app
-    if app.config['TESTING']:
-        # Configure manually for testing
-        return
-
     BLUEPRINT.config.update(app.config)
 
     storage_backends = {
