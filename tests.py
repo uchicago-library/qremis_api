@@ -98,7 +98,7 @@ class TestsMixin:
         rv = self.app.post("/object_list", data={"record": json.dumps(entity_json)})
         rj = self.response_200_json(rv)
         drv = self.app.post("/object_list", data={"record": json.dumps(entity_json)})
-        self.assertEqual(drv.status_code, 500)
+        self.assertEqual(drv.status_code, 400)
 
     def test_postDuplicateEvent(self):
         entity = make_event()
@@ -106,7 +106,7 @@ class TestsMixin:
         rv = self.app.post("/event_list", data={"record": json.dumps(entity_json)})
         rj = self.response_200_json(rv)
         drv = self.app.post("/event_list", data={"record": json.dumps(entity_json)})
-        self.assertEqual(drv.status_code, 500)
+        self.assertEqual(drv.status_code, 400)
 
     def test_postDuplicateAgent(self):
         entity = make_agent()
@@ -114,7 +114,7 @@ class TestsMixin:
         rv = self.app.post("/agent_list", data={"record": json.dumps(entity_json)})
         rj = self.response_200_json(rv)
         drv = self.app.post("/agent_list", data={"record": json.dumps(entity_json)})
-        self.assertEqual(drv.status_code, 500)
+        self.assertEqual(drv.status_code, 400)
 
     def test_postDuplicateRights(self):
         entity = make_rights()
@@ -122,7 +122,7 @@ class TestsMixin:
         rv = self.app.post("/rights_list", data={"record": json.dumps(entity_json)})
         rj = self.response_200_json(rv)
         drv = self.app.post("/rights_list", data={"record": json.dumps(entity_json)})
-        self.assertEqual(drv.status_code, 500)
+        self.assertEqual(drv.status_code, 400)
 
     def test_postDuplicateRelationship(self):
         entity = make_relationship()
@@ -130,7 +130,7 @@ class TestsMixin:
         rv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
         rj = self.response_200_json(rv)
         drv = self.app.post("/relationship_list", data={"record": json.dumps(entity_json)})
-        self.assertEqual(drv.status_code, 500)
+        self.assertEqual(drv.status_code, 400)
 
     def test_postEvent(self):
         entity = make_event()

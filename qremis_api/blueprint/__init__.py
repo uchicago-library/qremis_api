@@ -30,49 +30,145 @@ pagination_args_parser.add_argument('cursor', type=str, default="0")
 pagination_args_parser.add_argument('limit', type=int, default=1000)
 
 
-
-
 class Error(Exception):
     """Base class for exceptions in this module."""
+
+    error_name = "Error"
+
     def __init__(self, message):
         self.message = message
 
+    def to_dict(self):
+        return {"message": self.message,
+                "error_name": self.error_name}
 
-class DuplicateIdentifierError(Error):
-    pass
+
+class UserError(Error):
+    error_name = "UserError"
+
+
+class ServerError(Error):
+    error_name = "ServerError"
+
+
+class DuplicateIdentifierError(UserError):
+    error_name = "DuplicateIdentifierError"
 
 
 @BLUEPRINT.errorhandler(Error)
-def handle_invalid_usage(error):
-#    response = jsonify(error.to_dict())
-    response = jsonify({"message": error.message})
+def handle_errors(error):
+    response = jsonify(error.to_dict())
     response.status_code = 500
     return response
 
 
+@BLUEPRINT.errorhandler(UserError)
+def handle_user_errors(error):
+    response = jsonify(error.to_dict())
+    response.status_code = 400
+    return response
+
+
 class StorageBackend(metaclass=ABCMeta):
+    """ABC for storage backends, providing method requirements and footprints"""
     @abstractmethod
     def record_exists(self, kind, id):
+        """
+        Determines whether an identifier exists in the system
+
+        __Args__
+
+        1. kind (str): The kind of record (see module record_kinds)
+        2. id (str): The identifier to determine the existence of
+
+        __Returns__
+
+        * (bool): whether or not the record exists
+        """
         pass
 
     @abstractmethod
     def add_record(self, kind, id, rec):
+        """
+        Adds a record to the system
+
+        __Args__
+
+        1. kind (str): The kind of record (see module record_kinds)
+        2. id (str): The identifier of the record to add
+        3. rec (str): The JSON str representing the record
+        """
         pass
 
     @abstractmethod
     def link_records(self, kind1, id1, kind2, id2):
+        """
+        Links two records together
+
+        __Args__
+
+        1. kind1 (str): The kind of the first record
+        2. id1 (str): The identifier of the first record
+        3. kind2 (str): The kind of the second record
+        4. id2 (str): The identifier of the second record
+        """
+        # This method may impose limitations on the order of the "kinds"
+        # that can be linked, and may also produce stub relationships
+        # when required.
         pass
 
     @abstractmethod
     def get_record(self, id):
+        """
+        Retrieves a record
+
+        __Args__
+
+        1. id (str): The identifier of the record to retrieve
+
+
+        __Returns__
+
+        * (str): The record, as a JSON str
+        """
         pass
 
     @abstractmethod
     def get_kind_links(self, kind, id, cursor, limit):
+        """
+        Returns a list of linked${kind} records related to the identified record
+
+        __Args__
+
+        1. kind (str): The kind of linked records to retrieve
+        2. id (str): The identifier of the "originating" record to examine
+        3. cursor (str): The starting cursor. "0" is always the default starting cursor
+        4. limit (int/None): A suggestion for the number of results to return.
+            if None is supplied the method attempts to return _all_ of the results.
+
+        __Returns__
+
+        * (str, [str]): The next cursor (or None) to use to produce more results,
+            a list of identifiers
+        """
         pass
 
     @abstractmethod
     def get_kind_list(self, kind, cursor, limit):
+        """
+        Returns a list of ${kind} record identifiers
+
+        __Args__
+
+        1. kind (str): The kind of record to list identifiers for
+        2. cursor (str): The starting cursor. "0" is always the default starting cursor
+        3. limit (int): A suggestion for the number of results to return.
+
+        __Returns__
+
+        * (str, [str]): The next cursor (or None) to use to produce more results,
+            and a list of identifiers
+        """
         pass
 
 
@@ -103,7 +199,7 @@ class RedisStorageBackend(StorageBackend):
         if kind1 not in record_kinds or kind2 not in record_kinds:
             raise AssertionError()
         if kind1 == "relationship" and kind2 != "relationship":
-            raise ValueError("It looks like you passed the argumnets in the wrong order, " +
+            raise ValueError("It looks like you passed the arguments in the wrong order, " +
                              "link_records() takes the relationship as the second set (" +
                              "args[2] and args[3]) of arguments in order to not produce " +
                              "an additional relationship entity")
@@ -250,14 +346,17 @@ class MongoStorageBackend(StorageBackend):
 
     def get_kind_links(self, kind, id, cursor, limit):
         def peek(cursor, limit):
-            if len([x['_id'] for x in self.db[id+'Linked'+kind].find().sort('_id', ASCENDING).skip(cursor+limit)]) > 0:
+            if len([x['_id'] for x in self.db[id+'Linked'+kind].find()\
+                    .sort('_id', ASCENDING).skip(cursor+limit)]) > 0:
                 return str(cursor+limit)
             return None
         cursor = int(cursor)
         if limit is not None:
-            results = [x['_id'] for x in self.db[id+'Linked'+kind].find().sort('_id', ASCENDING).skip(cursor).limit(limit)]
+            results = [x['_id'] for x in self.db[id+'Linked'+kind].find()\
+                       .sort('_id', ASCENDING).skip(cursor).limit(limit)]
         else:
-            results = [x['_id'] for x in self.db[id+'Linked'+kind].find().sort('_id', ASCENDING).skip(cursor)]
+            results = [x['_id'] for x in self.db[id+'Linked'+kind].find()\
+                       .sort('_id', ASCENDING).skip(cursor)]
         if limit:
             next_cursor = peek(cursor, limit)
         else:
@@ -266,22 +365,26 @@ class MongoStorageBackend(StorageBackend):
 
     def get_kind_list(self, kind, cursor, limit):
         def peek(cursor, limit):
-            if len([x['_id'] for x in self.db[kind+'List'].find().sort('_id', ASCENDING).skip(cursor+limit)]) > 0:
+            if len([x['_id'] for x in self.db[kind+'List'].find()\
+                    .sort('_id', ASCENDING).skip(cursor+limit)]) > 0:
                 return str(cursor+limit)
             return None
         cursor = int(cursor)
-        results = [x['_id'] for x in self.db[kind+'List'].find().sort('_id', ASCENDING).skip(cursor).limit(limit)]
+        results = [x['_id'] for x in self.db[kind+'List'].find()\
+                   .sort('_id', ASCENDING).skip(cursor).limit(limit)]
         next_cursor = peek(cursor, limit)
         return next_cursor, results
 
 
-
 def check_limit(limit):
-    if limit > BLUEPRINT.config.get("MAX_LIMIT", 1000):
+    ub = BLUEPRINT.config.get("MAX_LIMIT", 1000)
+    if limit > ub:
         log.warn(
-            "Received request above MAX_LIMIT ({}), capping.".format(str(BLUEPRINT.config.get("MAX_LIMIT", 1000)))
+            "Received request above MAX_LIMIT ({}), capping.".format(
+                str(ub)
+            )
         )
-        limit = BLUEPRINT.config.get("MAX_LIMIT", 1000)
+        limit = ub
     return limit
 
 
@@ -328,7 +431,9 @@ class ObjectList(Resource):
         try:
             for x in rec.get_linkingRelationshipIdentifier():
                 if x.get_linkingRelationshipIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records("object", objId, "relationship", x.get_linkingRelationshipIdentifierValue())
+                    BLUEPRINT.config['storage'].link_records(
+                        "object", objId, "relationship", x.get_linkingRelationshipIdentifierValue()
+                    )
             rec.del_linkingRelationshipIdentifier()
         except KeyError:
             pass
@@ -424,7 +529,9 @@ class EventList(Resource):
         try:
             for x in rec.get_linkingRelationshipIdentifier():
                 if x.get_linkingRelationshipIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records("event", eventId, "relationship", x.get_linkingRelationshipIdentifierValue())
+                    BLUEPRINT.config['storage'].link_records(
+                        "event", eventId, "relationship", x.get_linkingRelationshipIdentifierValue()
+                    )
             rec.del_linkingRelationshipIdentifier()
         except KeyError:
             pass
@@ -520,7 +627,9 @@ class AgentList(Resource):
         try:
             for x in rec.get_linkingRelationshipIdentifier():
                 if x.get_linkingRelationshipIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records("agent", agentId, "relationship", x.get_linkingRelationshipIdentifierValue())
+                    BLUEPRINT.config['storage'].link_records(
+                        "agent", agentId, "relationship", x.get_linkingRelationshipIdentifierValue()
+                    )
             rec.del_linkingRelationshipIdentifier()
         except KeyError:
             pass
@@ -616,7 +725,9 @@ class RightsList(Resource):
         try:
             for x in rec.get_linkingRelationshipIdentifier():
                 if x.get_linkingRelationshipIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records("rights", rightsId, "relationship", x.get_linkingRelationshipIdentifierValue())
+                    BLUEPRINT.config['storage'].link_records(
+                        "rights", rightsId, "relationship", x.get_linkingRelationshipIdentifierValue()
+                    )
             rec.del_linkingRelationshipIdentifier()
         except KeyError:
             pass
@@ -715,7 +826,9 @@ class RelationshipList(Resource):
         try:
             for x in rec.get_linkingObjectIdentifier():
                 if x.get_linkingObjectIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records("object", x.get_linkingObjectIdentifierValue(), "relationship", relationshipId)
+                    BLUEPRINT.config['storage'].link_records(
+                        "object", x.get_linkingObjectIdentifierValue(), "relationship", relationshipId
+                    )
             rec.del_linkingObjectIdentifier()
         except KeyError:
             pass
@@ -723,7 +836,9 @@ class RelationshipList(Resource):
         try:
             for x in rec.get_linkingEventIdentifier():
                 if x.get_linkingEventIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records("event", x.get_linkingEventIdentifierValue(), "relationship", relationshipId)
+                    BLUEPRINT.config['storage'].link_records(
+                        "event", x.get_linkingEventIdentifierValue(), "relationship", relationshipId
+                    )
             rec.del_linkingEventIdentifier()
         except KeyError:
             pass
@@ -731,7 +846,9 @@ class RelationshipList(Resource):
         try:
             for x in rec.get_linkingAgentIdentifier():
                 if x.get_linkingAgentIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records("agent", x.get_linkingAgentIdentifierValue(), "relationship", relationshipId)
+                    BLUEPRINT.config['storage'].link_records(
+                        "agent", x.get_linkingAgentIdentifierValue(), "relationship", relationshipId
+                    )
             rec.del_linkingAgentIdentifier()
         except KeyError:
             pass
@@ -739,7 +856,9 @@ class RelationshipList(Resource):
         try:
             for x in rec.get_linkingRightsIdentifier():
                 if x.get_linkingRightsIdentifierType() == "uuid":
-                    BLUEPRINT.config['storage'].link_records("rights", x.get_linkingRightsIdentifierValue(), "relationship", relationshipId)
+                    BLUEPRINT.config['storage'].link_records(
+                        "rights", x.get_linkingRightsIdentifierValue(), "relationship", relationshipId
+                    )
             rec.del_linkingRightsIdentifier()
         except KeyError:
             pass
@@ -934,7 +1053,6 @@ def handle_configs(setup_state):
         'redis': RedisStorageBackend,
         'mongo': MongoStorageBackend
     }
-
 
     # Configure the selected storage backend
     if BLUEPRINT.config.get('STORAGE_BACKEND') == 'noerror':
