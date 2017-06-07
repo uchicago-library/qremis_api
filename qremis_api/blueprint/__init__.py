@@ -14,9 +14,7 @@ import pyqremis
 
 BLUEPRINT = Blueprint('qremis_api', __name__)
 
-BLUEPRINT.config = {
-    'STORAGE_BACKEND': 'noerror'
-}
+BLUEPRINT.config = {}
 
 API = Api(BLUEPRINT)
 
@@ -43,6 +41,10 @@ class Error(Exception):
     def to_dict(self):
         return {"message": self.message,
                 "error_name": self.error_name}
+
+
+class ConfigError(Error):
+    pass
 
 
 class UserError(Error):
@@ -192,7 +194,16 @@ class StorageBackend(metaclass=ABCMeta):
 
 
 class RedisStorageBackend(StorageBackend):
+    @staticmethod
+    def validate_bp(bp):
+        try:
+            bp.config['REDIS_HOST']
+        except KeyError:
+            print(bp.config)
+            raise ConfigError("No REDIS_HOST provided!")
+
     def __init__(self, bp):
+        self.validate_bp(bp)
         self.redis = redis.StrictRedis(
             host=bp.config['REDIS_HOST'],
             port=bp.config.get("REDIS_PORT", 6379),
@@ -295,8 +306,20 @@ class RedisStorageBackend(StorageBackend):
 
 
 class MongoStorageBackend(StorageBackend):
+    @staticmethod
+    def validate_bp(bp):
+        try:
+            bp.config['MONGO_HOST']
+        except KeyError:
+            raise ConfigError("No MONGO_HOST provided!")
+        try:
+            bp.config['MONGO_DBNAME']
+        except KeyError:
+            raise ConfigError("No MONGO_DBNAME provided!")
+
     def __init__(self, bp):
-        self.client = MongoClient(bp.config['MONGO_HOST'], bp.config['MONGO_PORT'])
+        self.validate_bp(bp)
+        self.client = MongoClient(bp.config['MONGO_HOST'], bp.config.get('MONGO_PORT', 27017))
         self.db = self.client[bp.config['MONGO_DBNAME']]
 
     def record_exists(self, kind, id):
@@ -1126,6 +1149,8 @@ class RelationshipLinkedRights(Resource):
 def handle_configs(setup_state):
     app = setup_state.app
     BLUEPRINT.config.update(app.config)
+    if BLUEPRINT.config.get('DEFER_CONFIG'):
+        return
 
     storage_backends = {
         'redis': RedisStorageBackend,
@@ -1133,12 +1158,10 @@ def handle_configs(setup_state):
     }
 
     # Configure the selected storage backend
-    if BLUEPRINT.config.get('STORAGE_BACKEND') == 'noerror':
-        pass
-    elif BLUEPRINT.config.get('STORAGE_BACKEND') is None:
-        raise RuntimeError("No STORAGE_BACKEND value provided!")
+    if not BLUEPRINT.config.get('STORAGE_BACKEND'):
+        raise ConfigError("No STORAGE_BACKEND value provided!")
     elif BLUEPRINT.config['STORAGE_BACKEND'] not in storage_backends:
-        raise RuntimeError(
+        raise ConfigError(
             "Invalid storage backend! Valid options: {}".format(
                 ", ".join([x for x in storage_backends.keys()])
             )
