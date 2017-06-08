@@ -9,6 +9,37 @@ Information about the qremis specification is available [here](https://github.co
 
 The supporting python library for qremis is available [here](https://github.com/bnbalsamo/pyqremis)
 
+## Configuration
+The Qremis_API is configured via environmental variables.
+
+Variable explanations:
+
+- QREMIS_API_STORAGE_BACKEND
+    - Specifies which storage backend to use, either redis or mongo
+- QREMIS_API_SECRET_KEY
+    - Provides the secret key
+- QREMIS_API_MONGO_HOST
+    - The hostname or ip of the host running the mongo backend
+- QREMIS_API_MONGO_PORT
+    - The port the mongo daemon is listening on on the MONGO_HOST
+    - Defaults to 27017
+- QREMIS_API_MONGO_DBNAME
+    - The name of the database to use for mongo storage 
+- QREMIS_API_REDIS_HOST
+    - The hostname or ip of the host running the redis backend
+- QREMIS_API_REDIS_PORT
+    - The port the redis daemon is listening on on the REDIS_HOST
+    - Defaults to 6379
+- QREMIS_API_REDIS_DB
+    - The name of the database to use for the redis storage
+    - Defaults to 0
+- QREMIS_API_VERBOSITY
+    - Logging verbosity
+    - Defaults to WARN
+- QREMIS_API_DEFER_CONFIG
+    - Prevents configuration from occuring on import
+    - Defaults to False
+
 ## Installation / Running
 
 ### via docker-compose
@@ -17,24 +48,17 @@ The supporting python library for qremis is available [here](https://github.com/
 # docker-compose up
 ```
 
-
 ### via flask Debug server
 
-Run a dev server with the following command:
+Utilizing a dev redis server running on localhost as a backend:
 ```
-$ QREMIS_API_CONFIG=$(pwd)/config.py sh debug.sh
-```
-
-The included config.py assumes you're running a redis instance listening on localhost on
-port 6379, and want to use db 0.
-
-If you have docker you can fire one of these up with
-```
-# docker run -p 6379:6379 redis
+$ QREMIS_API_STORAGE_BACKEND="redis" QREMIS_API_REDIS_HOST="localhost" ./debug.sh
 ```
 
-The included Dockerfile will build the application in a container, which means the
-container must have access to the redis instance referenced in the config.
+Utilizing a dev mongo server running on localhost as a backend:
+```
+$ QREMIS_API_STORAGE_BACKEND="mongo" QREMIS_API_MONGO_HOST="localhost" QREMIS_API_MONGO_DBNAME="dev" ./debug.sh
+```
 
 ## Endpoints
 
