@@ -36,4 +36,4 @@ ENV \
   WORKERS=${WORKERS} \
   TIMEOUT=${TIMEOUT} \
   PORT=${PORT} 
-CMD QREMIS_API_SECRET_KEY=${QREMIS_API_SECRET_KEY} gunicorn qremis_api:app -w ${WORKERS} -t ${TIMEOUT} -b 0.0.0.0:${PORT}
+CMD gunicorn qremis_api:app -w ${WORKERS} -t ${TIMEOUT} -b 0.0.0.0:${PORT}
