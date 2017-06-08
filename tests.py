@@ -2,10 +2,17 @@ from uuid import uuid4
 import datetime
 import unittest
 import json
+from os import environ
+
+from pyqremis import *
+
+# Differ all configuration of the app
+# to the tests setUp() function
+
+environ['QREMIS_API_DEFER_CONFIG'] = "True"
 
 import qremis_api
 
-from pyqremis import *
 
 
 def make_object():

@@ -7,12 +7,19 @@ services:
                 PORT: "8911"
                 WORKERS: "4"
                 TIMEOUT: "30"
+                SECRET_KEY: "passThisAtBuildTime"
         ports: 
             - "8911:8911"
         depends_on:
             - qremis_api_redis
         environment:
-            - QREMIS_API_CONFIG=/code/dc_config.py
+            - QREMIS_API_STORAGE_BACKEND=redis
+#            - QREMIS_API_STORAGE_BACKEND=mongo              
+            - QREMIS_API_REDIS_HOST=qremis_api_redis
+            - QREMIS_API_MONGO_HOST=qremis_api_mongo
+            - QREMIS_API_MONGO_DBNAME=qremis_records
     qremis_api_redis:
         image: "redis"
         entrypoint: "redis-server --appendonly yes"
+    qremis_api_mongo:
+        image: "mongo"
