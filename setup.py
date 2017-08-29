@@ -6,6 +6,7 @@ def readme():
 
 setup(
     name = "qremis_api",
+    version = "0.0.1",
     description = "A web API for managing a (PREMIS-like) qremis database",
     long_description = readme(),
     packages = find_packages(

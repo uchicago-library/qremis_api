@@ -1,5 +1,4 @@
 import logging
-from uuid import uuid4
 from json import dumps, loads
 from abc import ABCMeta, abstractmethod
 
@@ -10,6 +9,9 @@ from pymongo import MongoClient, ASCENDING
 from pymongo.errors import DuplicateKeyError
 
 import pyqremis
+
+
+__version__ = "0.0.1"
 
 
 BLUEPRINT = Blueprint('qremis_api', __name__)
@@ -1145,6 +1147,10 @@ class RelationshipLinkedRights(Resource):
         return id
 
 
+class Version(Resource):
+    def get(self):
+        return {"version": __version__}
+
 @BLUEPRINT.record
 def handle_configs(setup_state):
     app = setup_state.app
@@ -1204,3 +1210,5 @@ API.add_resource(RelationshipLinkedObjects, "/relationship_list/<string:id>/link
 API.add_resource(RelationshipLinkedEvents, "/relationship_list/<string:id>/linkedEvents")
 API.add_resource(RelationshipLinkedAgents, "/relationship_list/<string:id>/linkedAgents")
 API.add_resource(RelationshipLinkedRights, "/relationship_list/<string:id>/linkedRights")
+
+API.add_resource(Version, '/version')

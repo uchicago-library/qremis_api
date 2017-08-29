@@ -14,7 +14,6 @@ environ['QREMIS_API_DEFER_CONFIG'] = "True"
 import qremis_api
 
 
-
 def make_object():
     objIdentifier = ObjectIdentifier(objectIdentifierType="uuid", objectIdentifierValue=uuid4().hex)
     objChar = ObjectCharacteristics(Format(FormatDesignation(formatName="foo")))
@@ -1286,6 +1285,11 @@ class TestsMixin:
         self.assertEqual(len(comp_rel_ids), len(set(comp_rel_ids)))
         for x in comp_rel_ids:
             self.assertIn(x, relationship_ids)
+
+    def test_version(self):
+        rv = self.app.get("/version")
+        rj = self.response_200_json(rv)
+        self.assertEqual(rj['version'], qremis_api.blueprint.__version__)
 
 
 class RedisTests(TestsMixin, unittest.TestCase):
