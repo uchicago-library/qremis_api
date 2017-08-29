@@ -1289,7 +1289,7 @@ class TestsMixin:
     def test_version(self):
         rv = self.app.get("/version")
         rj = self.response_200_json(rv)
-        self.assertEqual(rj['version'], archstor.blueprint.__version__)
+        self.assertEqual(rj['version'], qremis_api.blueprint.__version__)
 
 
 class RedisTests(TestsMixin, unittest.TestCase):
