@@ -1,12 +1,6 @@
-FROM python:3.5-alpine
-COPY . /code
-WORKDIR /code
-RUN python setup.py install
-RUN pip install gunicorn
+FROM bnbalsamo/flask_stack
+ENV APP_NAME=qremis_api
 ARG SECRET_KEY=passThisAtBuildTime
-ARG WORKERS=4
-ARG TIMEOUT=30
-ARG PORT=8911
 ARG VERBOSITY=WARN
 # You have to pass a storage backend (redis or mongo)
 # and for either of them the required arguments to
@@ -32,8 +26,4 @@ ENV \
   QREMIS_API_REDIS_HOST=${REDIS_HOST} \
   QREMIS_API_REDIS_PORT=${REDIS_PORT} \
   QREMIS_API_REDIS_DB=${REDIS_DB} \
-  QREMIS_API_VERBOSITY=${VERBOSITY} \
-  WORKERS=${WORKERS} \
-  TIMEOUT=${TIMEOUT} \
-  PORT=${PORT} 
-CMD gunicorn qremis_api:app -w ${WORKERS} -t ${TIMEOUT} -b 0.0.0.0:${PORT}
+  QREMIS_API_VERBOSITY=${VERBOSITY} 
