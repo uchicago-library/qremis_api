@@ -1,7 +1,7 @@
 # qremis_api 
 [![Build Status](https://travis-ci.org/bnbalsamo/qremis_api.svg?branch=master)](https://travis-ci.org/bnbalsamo/qremis_api) [![Coverage Status](https://coveralls.io/repos/github/bnbalsamo/qremis_api/badge.svg?branch=master)](https://coveralls.io/github/bnbalsamo/qremis_api?branch=master) 
 
-v0.0.1
+v0.0.2
 
 ## About
 

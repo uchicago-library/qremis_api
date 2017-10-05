@@ -11,7 +11,7 @@ from pymongo.errors import DuplicateKeyError
 import pyqremis
 
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 
 BLUEPRINT = Blueprint('qremis_api', __name__)
