@@ -1,5 +1,5 @@
 # qremis_api 
-[![Build Status](https://travis-ci.org/bnbalsamo/qremis_api.svg?branch=master)](https://travis-ci.org/bnbalsamo/qremis_api) [![Coverage Status](https://coveralls.io/repos/github/bnbalsamo/qremis_api/badge.svg?branch=master)](https://coveralls.io/github/bnbalsamo/qremis_api?branch=master) 
+[![Build Status](https://travis-ci.org/uchicago-library/qremis_api.svg?branch=master)](https://travis-ci.org/uchicago-library/qremis_api) [![Coverage Status](https://coveralls.io/repos/github/uchicago-library/qremis_api/badge.svg?branch=master)](https://coveralls.io/github/uchicago-library/qremis_api?branch=master) 
 
 v0.0.2
 
@@ -7,9 +7,9 @@ v0.0.2
 
 A web API for managing a qremis "database".
 
-Information about the qremis specification is available [here](https://github.com/bnbalsamo/qremis)
+Information about the qremis specification is available [here](https://github.com/uchicago-library/qremis)
 
-The supporting python library for qremis is available [here](https://github.com/bnbalsamo/pyqremis)
+The supporting python library for qremis is available [here](https://github.com/uchicago-library/pyqremis)
 
 ## Configuration
 The Qremis_API is configured via environmental variables.

@@ -14,7 +14,7 @@ setup(
         ]
     ),
     dependency_links = [
-        'https://github.com/bnbalsamo/pyqremis' +
+        'https://github.com/uchicago-library/pyqremis' +
         '/tarball/master#egg=pyqremis'
     ],
     install_requires = [
